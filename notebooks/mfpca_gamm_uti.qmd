@@ -1,0 +1,1959 @@
+---
+title: "Analysing Ultrasound Tongue Imaging data using (M)FPCA and GAMM"
+author: 
+  - name:
+      given: 'Nathalie'
+      family: 'Elsässer'
+    affiliations:
+      name: 'Acoustics Research Institute, <br> Austrian Academy of Sciences, Vienna'
+    email: 'mailto:nathalie.elsaesser@oeaw.ac.at'
+date: "2025-08-26"
+output: html_document
+format:
+  html:
+    theme: cosmo
+    code-fold: true
+    toc: true
+    toc-location: left
+    reference-location: margin
+    df-print: kable
+    embed-resources: true
+    fig-cap-location: top
+bibliography: references.bib
+number-sections: true
+---
+
+
+This script was written using the help of three great tutorials -- @Gubian2025; @Coretta2025; @Wieling2018.
+
+```{r libraries, warning=FALSE, message=FALSE}
+# data processing and plotting
+library(tidyverse)
+library(plotly)
+library(rticulate)
+# GAMs
+library(mgcv)
+library(itsadug)
+# FPCA
+library(funData)
+library(MFPCA)
+# install.packages("devtools")
+# devtools::install_github("uasolo/landmarkregUtils")
+library(landmarkregUtils)
+library(abind)
+# LMER
+library(lme4)
+library(emmeans)
+# plotting
+library(RColorBrewer)
+library(gridExtra)
+source("polar_utils.R")
+```
+
+set seed:
+```{r}
+set.seed(207)
+```
+
+
+# static data
+
+In this first part, we are using the static data that we created in the $data\_preparation$ steps. 
+
+Read in the Cartesian static data set: 
+```{r}
+rhotic_data_static <- readRDS("../data/RDS/rhotic_data_static.rds")
+```
+
+The important parts of the data set for this part of the script are:
+
+* $participant$: The data set contains the data of 8 participants. They are abbreviated by "vp" (*Versuchsperson*) plus their participant number. The participants included have the numbers 4, 5, 6, 8, 9, 10, 20 and 23
+* $target$: The target words that were read by the participants
+* $knot$: Each AAA tongue spline is defined by 11 knots. 0 is the knot closest to the tongue root, 10 is the knot closest to the tongue tip.
+* $frame\_id$: All knots on one AAA tongue spline share the same $frame\_id$ to indicate that the rows in the table belong together.
+* $x\_mean$: The mean x-value of the target-/r/ of a participant
+* $y\_mean$: The mean y-value of the target-/r/ of a participant
+* $x\_mean\_z$: The mean x-value of the target-/r/ of a participant - z-scored
+* $y\_mean\_z$: The mean y-value of the target-/r/ of a participant - z-scored
+
+The goal of this script is to find out if there are differences in the production of the rhotic between the different speakers -- regardless of syllable position, phonetic environment or other factors.
+
+## GAMM
+
+GAMM is a generalized additive mixed model, for a general tutorial see Wieling [-@Wieling2018].
+
+### Polar coordinates {#sec-GAMM-polar-coordinates}
+
+Polar coordinates use a radius and an angle to define coordinates. The angle is a predictor variable used to predict the radius (radius = f(angle)).
+
+Load the data:
+```{r}
+rhotic_data_static_polar <- readRDS("../data/RDS/rhotic_data_polar_static.rds")
+```
+
+The data set has the same structure as the Cartesian data set described above but instead of x\_mean- and y\_mean-values, it has angle- and radius-values. [Note: We will call this data the "original"/OG Polar data (in comparison to the Linear/Procrustean normalized data), but in reality, this data is not the "original"/raw data that we got from AAA, but data that was first z-scored as Cartesian coordinates and then (after the z-scoring) converted to Polar coordinates.]
+
+We can plot the Polar data in a Cartesian coordinate system. Here, each radius value corresponds to exactly one angle value, whereas in the Cartesian data one x-value could have multiple y-values (because the tongue can bend back on itself).
+
+If we plot the Polar data in a Cartesian coordinate system with angle along the x-axis and radius along the y-axis, it looks like this:
+
+```{r}
+#| fig-cap: "Static polar data plotted in Cartesian coordinate system"
+#| label: fig-data_static_polar_raw
+
+# plot raw Polar 
+ggplot(rhotic_data_static_polar) +
+  aes(angle, radius, group = frame_id) +
+  geom_path() +
+  facet_wrap(vars(participant), ncol = 4)
+```
+Note that the plots here are mirrored in comparison to what we're normally used to when looking at tongue contours - the tongue tip is pictured along the left side (small angle values) while the tongue root is along the right side.
+
+In a Polar coordinate system, the data looks like this:
+```{r}
+#| fig-cap: "Static data in Polar coordinate system"
+#| label: fig-data_static_polar
+
+ggplot(rhotic_data_static_polar) +
+    aes(angle, radius, group = frame_id) +
+    geom_path() +
+    radial_plot(5) +
+  facet_wrap(vars(participant), ncol = 4)
+```
+(Here the tongue tip is pictures on the right side, tongue root on the left side.)
+
+As input formula for the GAM, we take the basic formula `radius ~ angle` -- angle is the independent variable while radius is the dependent variable. We aim to predict the radius based on two predictor variables: `angle and participant`.
+
+```{r}
+polar_gam_static <- bam(radius ~ participant + s(angle, by = factor(participant)),
+                          discrete = TRUE,
+                        family = 'scat',
+                        data = rhotic_data_static_polar
+)
+AR1.rho <- acf_resid(polar_gam_static)[2]
+```
+
+Taking autocorrelation into account (see @Wieling2018):
+
+```{r}
+polar_gam_static <- bam(radius ~ participant + s(angle, by = factor(participant)),
+                          discrete = TRUE,
+                        family = 'scat',
+                        rho = AR1.rho,
+                        AR.start = rhotic_data_static_polar %>% pull(knot) == 0,
+                        data = rhotic_data_static_polar
+)
+summary(polar_gam_static)
+```
+::: {.callout-note collapse="true"}
+### GAM check
+```{r}
+gam.check(polar_gam_static)
+
+acf_resid(polar_gam_static)
+```
+:::
+
+Now that we've calculated the GAM, we get the predictions and plot them:
+
+```{r}
+angle_grid_plot <- seq(min(rhotic_data_static_polar$angle), max(rhotic_data_static_polar$angle),
+                       length.out = 20) # make a prediction plot with 20 values
+static_polar_pred <- get_predictions(polar_gam_static,
+                        cond = list(angle = angle_grid_plot, 
+                                    participant = factor(rhotic_data_static_polar$participant) %>% levels()),
+                        print.summary = FALSE)
+
+gam_polar_plot <- ggplot(static_polar_pred) +
+  aes(x = angle, y = fit, group = participant ) +
+  geom_line(mapping = aes(color = participant)) +
+  geom_ribbon(mapping = aes(ymin = fit - CI, ymax = fit + CI, fill = participant), alpha = 0.5) +
+  radial_plot(10) +
+  theme(legend.position = "bottom")
+```
+
+Plot the predictions:
+```{r}
+#| fig-cap: "GAM predicted contours"
+#| label: fig-gam_static_polar_pred
+
+gam_polar_plot
+```
+
+The predicted contours for the different participants appear to match the data well when compared to the original contours. Participant 8 shows the highest tongue tip while participant 9 shows the downwardly curved tongue tip. Also, there is variation in the area around the tongue dorsum -- while participant 8 has a very flat tongue dorsum, most other partcipants show a raised tongue dorsum.
+
+However, it appearsto be an issue with the very left side of the data, specifically the values at the tongue root. This is particularly noticeable for participants 6 and 8. There may not be enough data points to accurately calculate tongue contours at angle values of 7/8$\pi$ and higher. A similar problem occured in Gubian [-@Gubian2025] (UTI_analysis_code.html#sec-st_angle_GAM). Gubian [-@Gubian2025] suggests doing a Linear angle normalization and a Procrustean fit ("we establish a fixed angle range for all contours, cut off the points that are beyond that range and extrapolate points for contours that do not have values up to the range limits", @Gubian2025). We will apply both methods on this data set to determine their impact and assess if the predicted values at the tongue root improve.
+
+#### Linear Angle Normalization
+
+We will now do a linear angle normalization similar to what Gubian [-@Gubian2025] describes:
+
+"A simple way to establish the reference angle range is to take the median angle of the first/last point from all contours. The contours are then reinterpolated on a regular grid within the common angle range. This of course introduces approximations, including the fact that now knots lose their original interpretation." [@Gubian2025] 
+
+```{r}
+angle_range <- rhotic_data_static_polar  %>% 
+  filter(knot %in% range(knot)) %>% # first and last knot
+  group_by(knot) %>% 
+  summarise(median_angle = median(angle)) %>% # median angle for first and last knot (all participants)
+  pull(median_angle) %>% 
+  sort()
+
+angle_grid <- seq(angle_range[1], angle_range[2], length.out=11) # 11 equidistant points between the median of knot0 & knot10
+
+linear_norm_static_polar_curves  <- rhotic_data_static_polar  %>% 
+  group_by(participant, frame_id) %>% 
+  # linear angle normalization on the angle_range interval
+  mutate(angle = (angle - min(angle)) * diff(angle_range) / diff(range(angle)) + angle_range[1]) %>% 
+  reframe(bind_cols(
+    knot = rev(seq(along.with = angle_grid, from = 0)), # fake knots, needed for AR1 term in GAM; knots have no meaning
+    approx(angle, radius, angle_grid) %>% as_tibble() # returns list of points which linearly interpolate given data points
+    )) %>% 
+  rename(angle = x, radius = y)
+```
+
+I noticed that this produces a few NA values at knot 0, e.g.:
+
+```{r}
+ex_og <- rhotic_data_static_polar %>% filter(participant == "vp004" & frame_id == 4) %>% 
+  ggplot() +
+  aes(angle, radius, group = frame_id) +
+    geom_path() +
+  geom_point() +
+  geom_text(aes(label = knot), check_overlap = TRUE,
+            nudge_x = .05, nudge_y = .05, show.legend = FALSE) +
+    ggtitle("OG data; participant 4; \"bankrott\"") +
+    radial_plot(5) +
+    theme(legend.position = "bottom")
+ex_linear <- linear_norm_static_polar_curves %>% filter(participant == "vp004" & frame_id == 4) %>% 
+  ggplot() +
+    aes(angle, radius, group = frame_id) +
+    geom_path() +
+  geom_point() +
+  geom_text(aes(label = knot), check_overlap = TRUE,
+            nudge_x = .05, nudge_y = .05, show.legend = FALSE) +
+    ggtitle("linear norm data; participant 4; \"bankrott\"\nKnot 0 is missing") +
+    radial_plot(5) +
+    theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "Comparison original data and linear data on one example (missing knot 0)"
+#| label: fig-ex_static_polar_og_linear
+
+grid.arrange(ex_og, ex_linear, ncol = 2)
+```
+
+We will ignore this for now (because I don't know what to do about it :D)
+
+Comparison of the old data set and the linear angle normalized data set:
+
+```{r}
+polar_plot_z_per_part <- ggplot(rhotic_data_static_polar) +
+    aes(angle, radius, group = frame_id, color = participant) +
+    geom_path() +
+    ggtitle("OG data") +
+    radial_plot(5) +
+    theme(legend.position = "bottom") + facet_wrap(vars(participant), ncol = 3)
+polar_plot_linear_norm <- ggplot(linear_norm_static_polar_curves) +
+    aes(angle, radius, group = frame_id, color = participant) +
+    geom_path() +
+    ggtitle("linear norm data") +
+    radial_plot(5) +
+    theme(legend.position = "bottom") + facet_wrap(vars(participant), ncol = 3)
+```
+
+
+```{r}
+#| message: false
+#| warning: false
+#| fig-cap: "Comparison original data and linear data; all contours"
+#| label: fig-all_static_polar_og_linear
+
+grid.arrange(polar_plot_z_per_part, polar_plot_linear_norm, ncol = 2)
+```
+
+The new tongue contours look different but overall keep their general shape. The ones with an upward-pointing tongue tip (e.g.,  participant 8) might look implausible. We have to keep that in mind when interpreting the following results.
+
+We will now calculate a new GAM:
+```{r}
+GAM_linear_norm <- bam(radius ~ participant + s(angle, by = factor(participant)),
+            discrete = TRUE,
+            family = 'scat',
+            data = linear_norm_static_polar_curves
+)
+AR1.rho <- acf_resid(GAM_linear_norm)[2]
+```
+Taking autocorrelation into account:
+
+```{r}
+GAM_linear_norm <- bam(radius ~ participant + s(angle, by = factor(participant)),
+                          discrete = TRUE,
+                        family = 'scat',
+                        rho = AR1.rho,
+                        AR.start = linear_norm_static_polar_curves %>% pull(knot) == 0,
+                        data = linear_norm_static_polar_curves
+)
+summary(GAM_linear_norm)
+```
+
+```{r}
+gam.check(GAM_linear_norm)
+```
+
+```{r}
+acf_resid(GAM_linear_norm)
+```
+
+Get the predictions and plot:
+
+```{r}
+angle_grid_plot <- angle_grid
+pred <- get_predictions(GAM_linear_norm,
+                        cond = list(angle = angle_grid_plot, 
+                                    participant = factor(rhotic_data_static_polar$participant) %>% levels()),
+                        print.summary = FALSE)
+
+gam_polar_lin_plot <- ggplot(pred) +
+  aes(x = angle, y = fit, group = participant) +
+  geom_line(mapping = aes(color = participant)) +
+  geom_ribbon(mapping = aes(ymin = fit - CI, ymax = fit + CI, fill = participant), alpha = 0.5) +
+  radial_plot(5) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "GAM predicted contours (linear normalization)"
+#| label: fig-gam_static_polar_pred_linear
+
+gam_polar_lin_plot
+```
+
+The most important point first: the tongue root appears noticeably improved compared to the previous plot.
+
+The tongue tips of participants 8, 10 and 23 are clearly raised in this prediction plot. In the prediction plot of the first Polar GAM, the tongue tip of participant 23 looked different and more pointed downward. Another (noteworthy) difference concerns the region between tongue dorsum and tongue root. In the new prediction plot, the participants differ a lot from each other in this region -- e.g., participant 8's tongue contour is more bulbous and goes further back than the contour of the other participants in that region, the contour of participant 5 is very steep, etc. In the first prediction plot, all of the participants had a very similar tongue shape in that region. It’s difficult to determine which plot better represents the actual data. The participants do show differences in the tongue root/tongue dorsum region, but it seems slightly over-exaggerated in the new plot using the Linear normalized data, e.g.,  participant 8's contours do seem bulbous in that part but they do not seem to be that far back in comparison with the other participants.
+
+One thing that stands out are the very small confidence interval ribbons in the new plot. The original data clearly shows a large spread for nearly all the participants in the tongue tip area, especially for participants 5 and 6. While the old plot showed a wider ribbon in this region, the new plot shows similarly narrow confidence intervals at the tongue tip as in any other region.
+
+#### Procrustean angle range {#sec-static-polar-procrustean}
+
+We will now try an additional way of normalizing the data -- the Procrustean fit. This is typically used to analyse shapes. In this case we use it to make all of the tongue contours comparable to the median tongue contour that we calculated above (median of knot 0, median of knot 10 and then interpolate for the "knots" inbetween) and saved in the `angle_grid`.
+
+```{r}
+proc_static_polar_curves <- rhotic_data_static_polar %>% 
+  group_by(participant, frame_id) %>% 
+  # interpolation using the angle_grid
+  reframe(bind_cols(
+    knot = rev(seq(along.with = angle_grid, from = 0)), # fake knots, needed for AR1 term in GAM
+    approx(angle, radius, angle_grid, rule = 2) %>% as_tibble()
+    )) %>% 
+  rename(angle = x, radius = y)
+```
+
+
+Comparison of the original data set and the Procrustean fit data set:
+
+```{r}
+polar_plot_proc <- ggplot(proc_static_polar_curves) +
+    aes(angle, radius, group = frame_id, color = participant) +
+    geom_path() +
+    ggtitle("Procrustean fit data") +
+    radial_plot(5) +
+    theme(legend.position = "bottom") + facet_wrap(vars(participant), ncol = 3)
+```
+
+```{r}
+grid.arrange(polar_plot_z_per_part, polar_plot_proc, ncol = 2)
+```
+
+In comparison to the linear normalized, the Procrustean fit data looks more similar to the original data. Especially the contours of participant 8 (Linear normalized: their contours looked very flat, the upward-pointing tongue tip nearly got lost) and participant 10 (linear normalized: back part of the tongue contours looked bulbous and like there was a huge spread between the tongue contours that can't be found in the original data).
+
+The only thing that stands out as particularly strange is the behavior of some of participant 8’s tongue contours at the tongue root. Instead of extending straight downward, they appear to "jump around":
+
+```{r}
+polar_plot_proc_ex_8 <- ggplot(proc_static_polar_curves %>% filter(participant == "vp008" & frame_id %in% c("1031", "1044", "944", "896"))) +
+    aes(angle, radius, group = frame_id, color = participant) +
+    geom_path() +
+    ggtitle("examples of weird tongue roots of participant 8\nProcrustean fit data") +
+    radial_plot(5) +
+    theme(legend.position = "bottom") + facet_wrap(vars(frame_id), ncol = 2)
+```
+
+```{r}
+#| fig-cap: "Example: distortion of tongue contour of participant 8 through Procrustean normalization"
+#| label: fig-ex_proc_normalization_static
+
+polar_plot_proc_ex_8
+```
+
+Let's keep this in mind when interpreting the results later.
+
+Then calculate the new GAM:
+```{r}
+GAM_proc <- bam(radius ~ participant + s(angle, by = factor(participant)),
+            discrete = TRUE,
+            family = 'scat',
+            data = proc_static_polar_curves
+)
+AR1.rho <- acf_resid(GAM_proc)[2]
+```
+Taking autocorrelation into account:
+
+```{r}
+GAM_proc <- bam(radius ~ participant + s(angle, by = factor(participant)),
+                          discrete = TRUE,
+                        family = 'scat',
+                        rho = AR1.rho,
+                        AR.start = proc_static_polar_curves %>% pull(knot) == 0,
+                        data = proc_static_polar_curves
+)
+summary(GAM_proc)
+```
+
+```{r}
+gam.check(GAM_proc)
+```
+
+```{r}
+acf_resid(GAM_proc)
+```
+
+Get the predictions and plot:
+
+```{r}
+pred <- get_predictions(GAM_proc,
+                        cond = list(angle = angle_grid_plot, 
+                                    participant = factor(rhotic_data_static_polar$participant) %>% levels()),
+                        print.summary = FALSE)
+
+gam_polar_proc_plot <- ggplot(pred) +
+  aes(x = angle, y = fit, group = participant) +
+  geom_line(mapping = aes(color = participant)) +
+  geom_ribbon(mapping = aes(ymin = fit - CI, ymax = fit + CI, fill = participant), alpha = 0.5) +
+  radial_plot(5) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "GAM predicted contours (Procrustean normalization)"
+#| label: fig-gam_static_polar_pred_proc
+
+gam_polar_proc_plot
+```
+
+The tongue dorsum and tongue root in this plot resemble those in the initial plot more closely than those in the one based on Linear normalization. Nonetheless, it does not have the weird values around the tongue root that we had in the first GAM, which is a positive improvement. As in the first GAM, the values between tongue root and tongue dorsum are very close together. Regarding the tongue dorsum, we observe participant-specific variation: participant 8 once more shows a flat contour while most of the others show a more raised tongue dorsum. The front part (tongue tip) looks very similar to the linear normalization.
+
+
+### Cartesian coordinates
+
+We have the option to use
+
+1. univariate GAMs - GAMs with only one dependent variable [@Gubian2025]
+
+2. multivariate GAMs - GAMs with more than one dependent variable [@Coretta2025]
+
+For the Cartesian tongue contour data, we focus on modeling the x and y coordinates as outcome variables. By definition, these are *two* variables that we try to predict. So it would make sense to use a multivariate GAM. However, it is also possible to model the data using univariate GAMs.
+The advantage of this approach is its lower complexity. On the downside, it fails to account for the correlation between the x and y coordinates, which may limit the model's accuracy. We therefore apply both univariate ad multivariate GAMs to assess their performance on our data.
+
+#### Univariate trick from Michele Gubian
+
+We will encode the dimension as a factor with two levels (x & y). The dimension will be seen as a predictor variable. Since the `participant` variable is a predictor variable as well, we will create a compound factor out of these two to have only one predictor. 
+The response variable will be the tongue position.
+
+```{r}
+# create compound factor participant.dim for all combinations of participant and dimension
+rhotic_data_static_long <- rhotic_data_static %>% 
+             pivot_longer(c(x_mean_z, y_mean_z), names_to = 'dimension', values_to = 'position') %>% 
+             unite("participant.dim", c(participant, dimension), sep = ".") %>% 
+             mutate(participant.dim = factor(participant.dim)) %>% 
+             # order to capture AR along knots
+             arrange(frame_id, participant.dim, knot)
+
+# calculate GAM
+GAM <- bam(position ~ participant.dim + s(knot, by = participant.dim),
+           data = rhotic_data_static_long,
+           family = 'scat',
+           discrete = TRUE)
+
+# autocorellation:
+AR1.rho <- acf_resid(GAM)[2]
+```
+
+Model that takes autocorrelation in the residuals into account:
+
+```{r}
+GAM <- bam(position ~ participant.dim + s(knot, by = participant.dim),
+           data = rhotic_data_static_long,
+           rho = AR1.rho, # error model for residuals
+            AR.start = rhotic_data_static_long %>% pull(knot) == 0,
+           family = 'scat',
+           discrete = TRUE)
+summary(GAM)
+```
+Check the GAM and the distribution of residuals:
+
+```{r}
+gam.check(GAM)
+```
+
+```{r}
+acf_resid(GAM)
+```
+
+```{r}
+gam_pred <- get_predictions(GAM,
+                        cond = list(knot = 0:10,
+                                    participant.dim = rhotic_data_static_long$participant.dim %>% levels()),
+                        se = FALSE,
+                        print.summary = FALSE) %>% 
+  separate_wider_delim(participant.dim, ".", names = c("participant", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = "fit")
+
+gam_pred_plot <- ggplot(gam_pred) +
+  aes(x_mean_z, y_mean_z, group = participant, color = participant) +
+  geom_path() +
+  geom_point(aes(color= participant)) +
+  geom_text(aes(label = knot), check_overlap = TRUE,
+            nudge_x = .05, nudge_y = .05, show.legend = FALSE) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "GAM predicted contours"
+#| label: fig-gam_static_cartesian_pred
+
+gam_pred_plot
+```
+
+Or with a greater resolution:
+```{r}
+gam_pred_res <- get_predictions(GAM,
+                        cond = list(knot = seq(0, 10, by = 0.1),
+                                    participant.dim = rhotic_data_static_long$participant.dim %>% levels()),
+                        se = FALSE,
+                        print.summary = FALSE) %>% 
+  separate_wider_delim(participant.dim, ".", names = c("participant", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = "fit")
+
+gam_pred_plot_res <- ggplot(gam_pred_res) +
+  aes(x_mean_z, y_mean_z, group = participant, color = participant) +
+  geom_path() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "GAM predicted contours (predicted 100 \"knots\" instead of 10"
+#| label: fig-gam_static_cartesian_pred_resolution
+
+gam_pred_plot_res
+```
+
+
+
+We can observe the same general tendencies as in the Polar GAM prediction. Participant 8 shows the most raised tongue tip, participant 9 the most bunched tongue tip. The remaining  participants fall between these two extremes. Participants 5, 6, 9 and 20 have a similarly high tongue dorsum, while the other participants' tongue dorsums are slightly flatter (esp. participant 8's tongue dorsum is clearly flatter). Between tongue dorsum and tongue root (knot 2 and 3), the participants are close together -- at the tongue root (knot 0 and 1), the participants are spreading further apart. This was also the case in the Procrustean normalized Polar GAM -- but not for the linear normalization. There, the GAM rather showed a wide spread at the transition from tongue dorsum to tongue root while the tongue roots of the participants were closer together. 
+
+We could now calculate difference plots between all of the participants. However, with 8 participants, this would result in 56 pairwise comparisons, which is quite extensive. Therefore, we will begin by generating a single difference plot to examine its structure. Since the largest difference appears to be between participant 8 and 9, we will visualize their differences in both the x and the y dimension.
+
+```{r}
+#| fig-cap: "GAM difference plots: participant 8 vs participant 9"
+#| label: fig-gam_static_cartesian_diff
+
+plot_diff(GAM, view = "knot", comp = list(participant.dim = c("vp009.x_mean_z", "vp008.x_mean_z")),
+            print.summary = FALSE, main = "participant 9 - participant 8, Dimension x", ylab = "x: 9 - 8")
+```
+
+```{r}
+plot_diff(GAM, view = "knot", comp = list(participant.dim = c("vp009.y_mean_z", "vp008.y_mean_z")),
+            print.summary = FALSE, main = "participant 9 - participant 8, Dimension y", ylab = "y: 9 - 8")
+```
+
+
+It is important to note that these difference plots only compare the differences at the specific knots. For instance, it reveals a significant difference in knot 3 of participant 8 and 9 in both dimensions. It would not reveal if instead of knot 3 of both participants, e.g., knot 3 of participant 8 and knot 2 of participant 9 are very close to each other. This is indeed the case, as can be seen in the following plot:
+
+```{r}
+ex_diff_knots_close <- gam_pred %>% filter(participant %in% c("vp008", "vp009")) %>% 
+  ggplot() +
+  aes(x_mean_z, y_mean_z, group = participant, color = participant) +
+  geom_path() +
+  geom_point(aes(color= participant)) +
+  geom_text(aes(label = knot), check_overlap = TRUE,
+            nudge_x = .05, nudge_y = .05, show.legend = FALSE) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "Example of two different knots (2 and 3) of two participants (8 and 9) being close to each other"
+#| label: fig-gam_static_cartesian_ex_knots
+
+ex_diff_knots_close
+```
+
+
+#### Multivariate GAM from Stefano Coretta's mv_uti
+
+Instead of using the univariate GAM function, we will now follow the mv\_uti tutorial by Stefano Coretta and calculate a multivariate (or -- in this case -- a bivariate) GAM. In this case the x and y variables will be modeled as "two variables changing along knot number" [@Coretta2025].
+
+This MGAM consists of:
+
+* a list in which we define two model formulas -- one for x, one for y
+* `mvn(d = 2)` a multivariate normal family with two dimensions (x and y)
+* a smooth over knot for both dependent variables s(knot, ...) with a `by` variable that is in this case `participant`
+* a `k` that is set to 5, because "X/Y coordinates of tongue contours [...] are by nature not very 'wiggly'" [@Coretta2025].
+
+A factor smooth over participant, as shown in Coretta [-@Coretta2025], would make no sense here because `participant` is our independet variable. 
+
+```{r}
+mv_gam <- mgcv::gam(list(
+    x_mean_z ~ factor(participant) +
+      s(knot, by = factor(participant), k = 5),
+    y_mean_z ~ factor(participant) +
+      s(knot, by = factor(participant), k = 5)
+  ),
+  data = rhotic_data_static,
+  family = mvn(d = 2) # multivariate normal family, two dimensions
+)
+```
+
+GAM summary:
+
+```{r}
+summary(mv_gam)
+```
+
+We now want to plot the predicted tongue contours (step by step).
+
+We need a grid to base our predictions on:
+```{r}
+# Create a grid of values to predict for
+frame_mv_gam <- expand_grid(
+  # All the speakers
+  participant = unique(rhotic_data_static$participant),
+  # Knots from 0 to 10 by increments of 0.1
+  # This gives us greater resolution along the tongue contour than just using 10 knots
+  knot = seq(0, 10, by = 0.1)
+)
+```
+
+Now we extract predictions with `predict()`:
+
+```{r}
+mv_gam_predict <- predict(mv_gam, frame_mv_gam, se.fit = TRUE) |>
+  as.data.frame() |>
+  as_tibble()
+
+# Rename columns
+colnames(mv_gam_predict) <- c("x_mean_z", "y_mean_z", "x_se", "y_se")
+
+# combine both data frames
+mv_gam_predict <- bind_cols(frame_mv_gam, mv_gam_predict) %>% 
+  mutate(
+    x_lo = x_mean_z - (1.96 * x_se),
+    x_hi = x_mean_z + (1.96 * x_se),
+    y_lo = y_mean_z - (1.96 * y_se),
+    y_hi = y_mean_z + (1.96 * y_se)
+  )
+```
+
+Now we plot:
+```{r}
+mv_gam_prediction_plot <- mv_gam_predict %>% 
+  ggplot(aes(x_mean_z, y_mean_z, colour = participant)) +
+  geom_point(size = 1, alpha = 0.75) +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "Multivariate GAM predicted contours: dots"
+#| label: fig-gam_static_cartesian_mv_pred_dots
+
+mv_gam_prediction_plot
+```
+
+
+```{r}
+mv_gam_prediction_plot2 <- mv_gam_predict %>% 
+  ggplot(aes(group = participant, color = participant)) +
+  geom_path(aes(x = x_mean_z, y = y_mean_z)) +
+  geom_path(aes(x = x_lo, y = y_lo), linetype = "dotted") +
+  geom_path(aes(x = x_hi, y = y_hi), linetype = "dotted") +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "Multivariate GAM predicted contours: lines"
+#| label: fig-gam_static_cartesian_mv_pred_line
+
+mv_gam_prediction_plot2
+```
+
+In sum, this looks similar to the predictions of the univariate GAM shown in @fig-gam_static_cartesian_pred.
+
+## (M)FPCA
+
+MFPCA stands for Multivariate Functional Principal Component Analysis. For a general tutorial see Gubian et al [-@Gubian2015].
+
+
+### Polar coordinates {#sec-fpca-polar-coordinates}
+
+The FPCA calculation using the Polar coordinates is based on Gubian [-@Gubian2025]. We will first calculate an FPCA model. In that model we will be able to see the overall variation of our data. Then we will test if there's a difference between the participants by calculating a linear model using the PC scores.
+
+We will build a `funData` object to calculate a FPCA. For this, we will use the Procrustean normalized data from @sec-static-polar-procrustean.
+
+We use the `long2irregFunData` function from the `landmarkregUtils` package to convert our data to the correct data object. In the FPCA, the angle serves as a predictor variable for the dependent variable `radius`.
+
+```{r}
+# build a funData object
+fpca_curves_static_polar_proc <- long2irregFunData(proc_static_polar_curves, 
+                                  id = "frame_id",
+                                  time = "angle", # predictor variable
+                                  value = "radius") %>% # dependent variable
+  as.funData()
+fpca_curves_static_polar_proc
+```
+
+
+Then we can calculate the FPCA using the PACE function:
+
+```{r}
+# Compute FPCA
+fpca_polar_static_proc <- PACE(fpca_curves_static_polar_proc)
+
+# Prop of explained var
+PropExpVar <- round(fpca_polar_static_proc$values  / sum(fpca_polar_static_proc$values), digits = 3)
+```
+
+```{r}
+PropExpVar
+```
+
+The `PACE` function automatically chooses how many Principle Components (PCs) to compute. Here, it has computed 6 PCs. The 6 PCs cover 99 \% of the variance in the data [@Gubian2025].
+
+The first PC explains 49 \% of the variance in the data, the second PC 24 \% of the variance and the third PC 10 \%. We will now take a closer look at these three PCs.
+
+```{r}
+nPC <- 3
+# scores st. dev.
+sdFun <- fpca_polar_static_proc$values %>% sqrt()
+
+# PC curves to be plotted
+PCcurves_polar_static_proc <- expand_grid(PC = 1:nPC,
+                        fractionOfStDev = seq(-1, 1, by=.25)) %>%
+  group_by(PC, fractionOfStDev) %>%
+  reframe(
+    funData2long1(fpca_polar_static_proc$mu + fractionOfStDev * sdFun[PC] * fpca_polar_static_proc$functions[PC],
+                  time = "angle", value = "radius")
+  )
+# Plot
+FPCA_polar_static_proc_plot <- ggplot(PCcurves_polar_static_proc) +
+  aes(x = angle, y = radius, group = fractionOfStDev, color = fractionOfStDev) +
+  geom_line() +
+  scale_color_gradient2(low = "blue", mid = "grey", high = "orangered",
+                        breaks = c(-1, 0 , 1)) +
+  facet_wrap(~ PC, ncol = 2,
+             labeller = labeller(PC = ~ str_glue("PC{.x}"))) +
+  labs(color = expression(frac(s[k], sigma[k]))) +
+  geom_line(data = PCcurves_polar_static_proc %>% filter(fractionOfStDev == 0), color = 'black', linewidth = 1.2) +
+  radial_plot(4) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "FPCA: 3 Principle Components for Polar static data"
+#| label: fig-fpca_polar_static_proc_plot
+
+FPCA_polar_static_proc_plot
+```
+
+The 3 PCs describe different shape variations in the data (regardless of the variable `participant`). Pictured in black is the predicted mean tongue contour. The colored lines show the effect of the PCs -- the blue lines show a deviation from the mean up to -1 standard deviation, in orange up to +1 standard deviation of the respective PC. The different PCs are pictured independently -- PC1 in the top left panel, PC2 in the top right panel, PC3 in the bottom panel.
+
+The first PC score describes a variation of the tongue contour mainly in the front part of the tongue. A larger PC1 score (pictured in orange) describes a more downward pointed tongue tip, a smaller PC1 score (pictured in blue) describes a more raised tongue tip. Additionally, the PC1 score describes a general retraction / fronting of the tongue: A larger PC1 score causes the whole contour to be slightly retracted, a smaller PC1 score causes the contour to be more fronted. 
+
+If we consider this in regard to the rhotic we are investigating, we could expect a smaller PC1 score describing alveolar/front rhotics (raised tongue tip, tongue moves forward) and a larger PC1 score describing uvular/back rhotics (bunched tongue, tongue tip is pointing downward, tongue dorsum is raised).
+
+PC2 mainly describes a tongue movement along the vertical axis. A large PC2 score describes a general lowering of the tongue dorsum and a slight raising of the tongue tip, a smaller PC2 score describes a raising of the tongue dorsum and a slight lowering of the tongue tip. In general, a larger PC2 score describes a flat tongue contour, while a smaller PC2 score describes a steeper tongue with an arched tongue dorsum.\n
+We could apply this pattern to the rhotics as well -- a smaller PC2 score may be an indication for a uvular/back rhotic, a larger PC2 score may indicate a front/alveolar rhotic -- although we would probably expect a more raised tongue tip. PC2 could also describe variation within the uvular rhotics: a uvular fricative would be expected to look like a tongue contour with a low PC2 score (very high tongue dorsum that probably causes a friction), a uvular approximant would probably look more like a tongue contour with a higher PC2.
+
+PC3 also describes a height variation: A low PC3 score describes a general raising of the whole tongue (tongue tip \& tongue dorsum) -- a high PC3 score describes a lowering of the whole tongue.
+
+We will now plot the PC scores of the participants to see if they differ in their PC scores.
+
+```{r}
+# collect PC scores
+PCscores_static_polar <- fpca_polar_static_proc$scores %>%
+  `colnames<-`( paste0("s", 1:fpca_polar_static_proc$npc)) %>%
+  as_tibble() %>%
+  bind_cols(proc_static_polar_curves %>% distinct(frame_id, participant), .)
+
+# boxplots PC scores by Category
+FPCA_static_polar_boxplot <- PCscores_static_polar %>% 
+  pivot_longer(cols = s1:all_of(str_glue("s{fpca_polar_static_proc$npc}")), 
+               names_to = "PC", values_to = "score") %>% 
+  filter(PC %in% str_c("s", 1:nPC)) %>% 
+  ggplot() +
+  aes(x = participant, y = score, color = participant) +
+  geom_boxplot() +
+  facet_wrap(~ PC) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "FPCA: distribution of PC scores by participant"
+#| label: fig-fpca_polar_static_proc_boxplot
+
+FPCA_static_polar_boxplot
+```
+
+The boxplots show that the participants have a great variation in PC1 and PC2, but very similar PC3 scores. It seems like PC1 and PC2 are dependent on the variable `participant` while PC3 is independent. The variation pictured through the PC3 score could maybe be explained by another variable.
+
+Another way to plot the PC1 and PC2 scores:
+
+```{r}
+# scatterplot PC scores s1 and s2 by participant
+pc_mean <- PCscores_static_polar %>% 
+  group_by(participant) %>% 
+  summarise(
+    mean_s1 = mean(s1),
+    mean_s2 = mean(s2),
+    mean_s3 = mean(s3)
+  ) %>% 
+  ungroup()
+
+PCscores_static_polar_scatterplot <- ggplot(PCscores_static_polar) +
+  aes(x = s1, y = s2, color = participant) +
+  geom_point(alpha = 0.1) +
+  geom_point(data = pc_mean, mapping = aes(x = mean_s1, y = mean_s2, color = participant),pch = 17, size = 4) +
+  stat_ellipse() +
+  theme(legend.position = "right")
+```
+
+```{r}
+#| fig-cap: "FPCA: distribution of PC scores by participant -- scatterplot"
+#| label: fig-fpca_polar_static_proc_scatterplot
+
+PCscores_static_polar_scatterplot
+```
+
+There is considerable variation among participants in the PC1 scores (s1). While participant 8 has the lowest s1, participant 9 has the highest. The other participants fall somewhere in between but are grouped relatively close together. Participants 6 and 10 show scores below the mean (0), while participants 4, 5, 20 and 23 show scores above the mean. As shown in @fig-fpca_polar_static_proc_plot, s1 describes a retraction/fronting and a lowering/raising of the tongue tip.\n
+Participant 8, along other participants exhibiting relatively low s1 values, is therefore expected to have a predicted tongue contour that is fronted and has a raised tongue tip -- which may indicate alveolar/front rhotics. In contrast, participant 9 and those with relatively high s1 values are expected to show a retracted tongue contour and have a downward pointing tongue tip -- which may suggest uvular/back rhotics.
+
+For the PC2 score (s2), there seem to be two groups of participants: participants 5, 6 and 20 have a low s2, while the other participants (4, 8, 9, 10 and 23) have a rather high s2. While the two groups are not clearly separated, the mean scores reveal a distinct split -- despite some overlap in the data points. Looking back at @fig-fpca_polar_static_proc_plot, we know that s2 describes the "steepness" of the tongue shape. A low s2 (as seen in participants 5, 6 and 20) describes a higher tongue dorsum/steeper tongue shape and a high s2 (as seen in participants 4, 8, 9, 10 and 23) describes a flatter tongue shape. 
+
+Now we're interested in calculating a linear model (lm) to see if the PC scores correlate with the variable `participant` (`lm(PCscore ~ participant)`) or if this is just random. Can we predict s1/s2 by participant?
+
+```{r}
+# s1
+s1_mod <- lm(s1 ~ participant, data = PCscores_static_polar)
+s1_mod %>% summary()
+```
+
+Pairwise comparisons of participants using `emmeans`:
+
+```{r}
+emmeans(s1_mod, pairwise ~ participant)
+```
+
+A small p-value means that, according to the linear model, the predicted tongue contours of the two compared participants are significantly different.
+
+Now we should be able to reconstruct the tongue contours that are predicted by s1 for each participant:
+
+```{r}
+# reconstruct predicted curves
+predCurves_s1 <- emmeans(s1_mod, pairwise ~ participant)$emmeans %>%
+  as_tibble() %>%  
+  group_by(participant) %>% 
+  reframe(bind_cols(
+    funData2long1(fpca_polar_static_proc$mu + emmean * fpca_polar_static_proc$functions[1], time = 'angle', value = "radius"),
+    funData2long1(fpca_polar_static_proc$mu + lower.CL * fpca_polar_static_proc$functions[1], time = 'angle', value = "yl") %>% 
+      select(yl),
+    funData2long1(fpca_polar_static_proc$mu + upper.CL * fpca_polar_static_proc$functions[1], time = 'angle', value = "yu") %>% 
+      select(yu)
+  ))
+
+FPCA_static_polar_predplot_s1 <- ggplot(predCurves_s1) +
+  aes(angle, radius, color = participant) +
+  geom_line() +
+  geom_ribbon(aes(x = angle, ymin = yl, ymax = yu, fill = participant),
+              alpha = 0.3, inherit.aes = FALSE) +
+  radial_plot(5) +
+  theme(legend.position = "bottom")
+
+```
+
+```{r}
+#| fig-cap: "FPCA: Predicted tongue contours by PC1 score"
+#| label: fig-fpca_polar_static_pred_plot_s1
+
+FPCA_static_polar_predplot_s1
+```
+
+In this prediction plot, we can see the wide range of tongue contours that the lm predicted based on the participants' PC1 scores. As expected, participant 9 has the most retracted tongue contour with the most downward pointing tongue tip while participant 8 has the most fronted tongue contour with a raised tongue tip.
+
+We can do the same type of model for s2:
+
+```{r}
+# s2
+s2_mod <- lm(s2 ~ participant, data = PCscores_static_polar)
+s2_mod %>% summary()
+```
+
+Pairwise comparisons of participants using `emmeans`:
+
+```{r}
+emmeans(s2_mod, pairwise ~ participant)
+```
+
+```{r}
+# reconstruct predicted curves
+predCurves_s2 <- emmeans(s2_mod, pairwise ~ participant)$emmeans %>%
+  as_tibble() %>%  
+  group_by(participant) %>% 
+  reframe(bind_cols(
+    funData2long1(fpca_polar_static_proc$mu + emmean * fpca_polar_static_proc$functions[2], time = 'angle', value = "radius"),
+    funData2long1(fpca_polar_static_proc$mu + lower.CL * fpca_polar_static_proc$functions[2], time = 'angle', value = "yl") %>% 
+      select(yl),
+    funData2long1(fpca_polar_static_proc$mu + upper.CL * fpca_polar_static_proc$functions[2], time = 'angle', value = "yu") %>% 
+      select(yu)
+  ))
+
+FPCA_static_polar_predplot_s2 <- ggplot(predCurves_s2) +
+  aes(angle, radius, color = participant) +
+  geom_line() +
+  geom_ribbon(aes(x = angle, ymin = yl, ymax = yu, fill = participant),
+              alpha = 0.3, inherit.aes = FALSE) +
+  radial_plot(5) +
+  theme(legend.position = "bottom")
+
+```
+
+```{r}
+#| fig-cap: "FPCA: Predicted tongue contours by PC2 score"
+#| label: fig-fpca_polar_static_pred_plot_s2
+
+FPCA_static_polar_predplot_s2
+```
+
+### Cartesian coordinates
+
+We aim to predict the tongue contours based on the 11 knots. To achieve more fine-grained predictions and plots, we add artificial "extra knots" between the original knots [@Coretta2025]. The first step is to create a grid for these predictions.
+
+```{r}
+sampling_period <- 0.1
+maxknot <- max(rhotic_data_static$knot)
+grid <- seq(0, maxknot, by = sampling_period)
+```
+
+We now need to make the data longer and create two separate columns: One column called "dim" that tells us the dimension of the value (either x-axis or y-axis) and one column called "value" with the position of the sensor on the respective axis/dimension.
+
+
+```{r}
+curves_xy <- rhotic_data_static %>% 
+  pivot_longer(cols = c(x_mean_z, y_mean_z), names_to = "dim", values_to = "value") %>% 
+  group_by(filename, frame_id, participant, dim) %>% 
+  reframe(approx(knot, value, grid, rule = 2) %>% as_tibble()) %>% 
+  ungroup() %>% rename(knot = x, value = y)
+```
+
+The next step is to build a `multiFunData` object (from the funData package). These are a class for multivariate functional data. We use the `long2irregFunData` function from the `landmarkregUtils` package to convert our data to the correct data object. 
+
+```{r}
+# build a multiFunData object
+curvesFun2D <- lapply(c("x_mean_z", "y_mean_z"), function(y)
+  long2irregFunData(curves_xy %>% filter(dim == {{y}}),
+                    id = "frame_id",
+                    time = "knot",
+                    value = "value") %>% 
+    as.funData()
+) %>% 
+  multiFunData()
+```
+Now we have the curvesFun2D object that we need to compute the FPCA. 
+
+We will now compute 5 Principle Components -- which is more than necessary for our purposes. This is "a quick way to get a good approx for the \% explained var per PC" [@Gubian2025].
+
+```{r}
+# Compute FPCA
+nPC <- 5
+mfpca_cartesian_static <- MFPCA(curvesFun2D,
+               M = nPC,
+               uniExpansions = list(list(type = "uFPCA"),list(type = "uFPCA"))
+)
+
+# Prop of explained var
+PropExpVar <- round(mfpca_cartesian_static$values / sum( mfpca_cartesian_static$values) , digits = 3)
+# scores st dev
+sdFun <- mfpca_cartesian_static$values %>% sqrt()
+
+PropExpVar
+```
+
+The 1st PC explains about 54 % of the variance of the data, the 2nd PC explains 26 % and the 3rd still explains at least 10 % of the variance.
+
+Going further, we will use the first two PCs and plot the according curves.
+
+```{r}
+nPC <- 2
+# PC curves to be plotted
+PCcurves_xy <- expand_grid(PC = 1:nPC,
+                        dim = 1:2, 
+                        fractionOfStDev = seq(-1, 1, by=.25)) %>%
+  group_by(PC, dim, fractionOfStDev) %>%
+  reframe(
+    funData2long1(
+      mfpca_cartesian_static$meanFunction[[dim]] +
+        fractionOfStDev * sdFun[PC] * mfpca_cartesian_static$functions[[dim]][PC],
+      time= "knot", value = "y")
+  ) %>% 
+  mutate(dim = factor(dim, levels = c(1,2), labels = c('x_mean_z', 'y_mean_z')))
+
+# Plot
+FPCA_2PCs_plot <- ggplot(PCcurves_xy) +
+  aes(x = knot, y = y, group = fractionOfStDev, color = fractionOfStDev) +
+  geom_line() +
+  scale_color_gradient2(low = "blue", mid = "grey", high = "orangered",
+                        breaks = c(-1, 0 , 1)) +
+  facet_grid(dim ~ PC,
+             scales = "free_y",
+             labeller = labeller(PC = ~ str_glue("PC{.x}"))) + #,
+                                 # dim = dimlabels)) +
+  labs(color = expression(frac(s[k], sigma[k]))) +
+  geom_line(data = PCcurves_xy %>% filter(fractionOfStDev == 0), color = 'black', linewidth = 1.2) 
+
+FPCA_2PCs_plot
+```
+
+On the left, the results of PC1 are pictured, PC2 is pictured on the right. In the top row, the y-value (tongue movement from the bottom to the top of the mouth) is pictured along the y-axis. In the bottom row, the x-values are pictured along the y-axis (tongue movement from back/posterior [small x-value] to front/anterior [large x-value]). The x-axis shows the 11 knots of the AAA tongue splines (tongue root/most posterior knot = 0; tongue tip/most anterior knot = 10).
+
+We can observe that PC1 mainly describes movement along the y-axis, both in the back region of the graph/tongue (around knot 2 to 5) and the front of the tongue (around knot 7 to 10). A higher PC1 score corresponds to a lower position of the back part of the tongue (= lower y-value), while a lower PC1 score corresponds to a higher position (= higher y-value).\n
+It also has an influence on the tongue tip (knot 7 to 10): the lower the PC1 score, the lower the tongue tip -- the higher PC1, the higher the tongue tip.\n
+Along the x-axis, PC1 influences the graph/the tongue shape to be slightly more advanced or retracted, affecting nearly the entire region from knot 2 to knot 8. The higher the PC1 score, the lower the value of the knots along the x-axis, resulting in a more fronted graph/tongue shape compared to the mean. This means that the tongue is more posterior (further back) if the PC1 score is higher; and more anterior (more fronted) if the PC1 score is lower. Interestingly, the opposite is true for the back and front part of the tongue (knot 0 to 2 and knot 9 to 10) - here, the tongue is more posterior (further back) if the PC1 score is lower and more anterior (more fronted) if the PC2 score is higher. However, these movements are relatively small compared to the movements along the y-axis.
+
+Regarding the rhotics that we are investigating, the PC1 score reveals differences in tongue height around both the uvular region (knots 3 to 7) and the alveolar region (knots 8 to 10). A higher PC1 score may tell us that the tongue is further away from the palate in the uvular region, a lower PC1 score may be an indicator that the tongue is approaching the palate. For the alveolar region, a low PC1 score describes a bunched rhotic with the tongue tip pointing downward while a high PC1 score describes the tongue tip as pointing upward.
+
+We would suspect that uvular fricatives have a low PC1 score because the tongue should be close to the uvular region of the palate while articulating uvular fricatives. Uvular approximants should have a low PC1 score as well, but not as low as the fricatives. Alveolar rhotics should have a high PC1 score, because they are not articulated with an approach of the tongue to the uvular. Instead, they have a raised tongue tip which corresponds to a high PC1 score.
+
+PC2 mainly describes movement in knots 5 to 10, that is, the front part of the tongue. A low PC2 score causes a higher y-value and a slightly higher x-value in the front part of the mouth, a high PC2 score causes a lower y-value and a slightly lower x-value. This means the tongue tip is raised and slightly more anterior (fronted) for a low PC2 and the tongue tip is pointed downward and slightly more retracted for a higher PC2.
+
+When considering the rhotics, we would expect uvular rhotics to have higher PC2 scores, as the tongue tip goes downward and the tongue tip might be retracted for uvular rhotics. For alveolar rhotics we expect low PC2 scores, because the tongue tip is typically raised and the tongue might be fronted.
+
+We can look at all of this in a trajectory plot as well, this will show us both dimensions in one plot:
+
+```{r}
+FPCA_knot_traj_plot <- ggplot(PCcurves_xy %>% pivot_wider(names_from = dim, values_from = y) %>% filter(knot %in% c(0,1,2,3,4,5,6,7,8,9,10))) +
+  aes(x = x_mean_z, y = y_mean_z, group = fractionOfStDev, color = fractionOfStDev) +
+  geom_path() + geom_point(colour = "black") +
+  scale_color_gradient2(low = "blue", mid = "grey", high = "orangered",
+                        breaks = c(-1, 0 , 1)) +
+  facet_grid(. ~ PC,
+             # scales = "free_y",
+             labeller = labeller(PC = ~ str_glue("PC{.x}"))) +
+  labs(color = expression(frac(s[k], sigma[k]))) +
+  theme(legend.position = "right")
+```
+
+```{r}
+#| fig-cap: "FPCA: Trajectory Plot; PC1 and PC2"
+#| label: fig-fpca_cartesian_static_traj_plot
+
+FPCA_knot_traj_plot
+```
+
+
+*Differences between the speakers*
+
+Our first goal is to see if there is a difference between the speakers. Since the use of uvular and alveolar rhotics is typically speaker-specific, we would expect clear differences in PC1 and PC2 scores across speakers. Speakers using (mainly) alveolar rhotics should have a higher PC1 and a lower PC2 score overall, assuming the theory described above is accurate. Speakers using (mainly) uvular rhotics should have a lower PC1 and a higher PC2 score in comparison.
+
+```{r}
+nPC = 5
+# collect PC scores
+PCscores_xy <- mfpca_cartesian_static$scores %>%
+  `colnames<-`(paste0("s", 1:nPC)) %>%
+  as_tibble() %>%
+  bind_cols(curves_xy %>% distinct(filename, frame_id, participant), .)
+# note that the PC scores are the same for both dimensions
+
+# scatterplot PC scores s1 and s2 by participant
+pc_mean <- PCscores_xy %>% 
+  group_by(participant) %>% 
+  summarise(
+    mean_s1 = mean(s1),
+    mean_s2 = mean(s2),
+    mean_s3 = mean(s3)
+  ) %>% 
+  ungroup()
+
+PCscores_per_participants_plot <- ggplot(PCscores_xy) +
+  aes(x = s1, y = s2, color = participant) +
+  geom_point(alpha = 0.1) +
+  geom_point(data = pc_mean, mapping = aes(x = mean_s1, y = mean_s2, color = participant),pch = 17, size = 4) +
+  stat_ellipse() +
+  theme(legend.position = "right")
+```
+
+```{r}
+#| fig-cap: "FPCA: distribution of PC scores by participant"
+#| label: fig-fpca_cartesian_static_scatterplot
+
+PCscores_per_participants_plot
+```
+
+In general, we can observe that the participants differ a lot in the PC1 score (s1), but seem to not differ much at all with regard to the PC2 score (s2). So the differences in s2 do not seem to be speaker-specific
+
+We also plot the PC scores as boxplots. In this case we will have a short look at all 5 PC scores that we calculated, to see if there might be another PC score that correlates even stronger to the variable `participant` than the PC1 score:
+
+```{r}
+FPCA_cartesian_static_scores_boxplot <- PCscores_xy %>%
+  pivot_longer(cols = paste0("s", 1:nPC), 
+               names_to = "PC", values_to = "score") %>% 
+  ggplot() +
+  aes(x = participant, y = score, color = participant) +
+  geom_boxplot() +
+  facet_wrap(~ PC) +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
+```
+
+```{r}
+#| fig-cap: "FPCA: distribution of all 5 PC scores by participant"
+#| label: fig-fpca_cartesian_static_boxplot
+
+FPCA_cartesian_static_scores_boxplot
+```
+
+It looks like s1 has the strongest correlation to the variable `participant`, while s2 looks like it doesn't correlate at all. The other PC scores might be weakly correlated to the variable `participant`. We will leave it at that and concentrate on the PC1 score.
+
+Participant 9 shows the lowest s1, while participant 8 shows the highest s1. As described above, a high s1 describes a lowering of the tongue in the uvular region and a raising of the tongue in the alveolar region what could be interpreted as the pronunciation of an alveolar rhotic (e.g., an alveolar trill). A low s1 describes the opposite -- a high tongue dorsum and a low tongue tip, what would be the case for uvular rhotics (e.g., uvular fricatives).
+
+The other participants have a s1 that falls between those of participant 9 and 8.
+
+*Linear Model*
+
+The question arises, if the correlation between s1 and the variable `participant` is significant. To test that, we calculate a linear model using the configuration `lm(s2 ~ participant)`.
+
+```{r}
+s <- 1 # score index
+model_eq <- str_glue("s{s} ~ participant") %>% as.formula()
+mod <- lm(model_eq, data = PCscores_xy)
+mod %>% summary()
+```
+
+Pairwise comparisons of participants using `emmeans`:
+
+```{r}
+emmeans(mod, pairwise ~ participant)
+```
+
+The `emmeans` function reveals that there are significant differences in the PC1 scores of all the contrast except for the contrast between participant 4 and participant 23 (p = 0.3132) and participant 6 and 23 (p = 0.3627). [Note: This is actually interesting because participant 23 uses an alveolar rhotic while 4 and 6 use an uvular rhotic, so we would expect 4 and 6 to be different from 23. Maybe this variation is covered by one of the other PC scores.]
+
+```{r}
+predCurves <- emmeans(mod, pairwise ~ participant)$emmeans %>%
+  as_tibble() %>%
+  expand_grid(dim = 1:2) %>% 
+  group_by(participant, dim) %>% 
+  reframe(bind_cols(
+    funData2long1(mfpca_cartesian_static$meanFunction[[dim]] +
+                    emmean * mfpca_cartesian_static$functions[[dim]][s], time = "knot", value = "y"),
+    funData2long1(mfpca_cartesian_static$meanFunction[[dim]] +
+                    lower.CL * mfpca_cartesian_static$functions[[dim]][s], time = "knot", value = "y_l") %>% 
+      select(y_l),
+    funData2long1(mfpca_cartesian_static$meanFunction[[dim]] +
+                    upper.CL * mfpca_cartesian_static$functions[[dim]][s], time = "knot", value = "y_u") %>% 
+      select(y_u)
+  )) %>% 
+  mutate(dim = factor(dim, levels = c(1,2), labels = c('x_mean_z', 'y_mean_z'))) %>% 
+  pivot_wider(names_from = dim, values_from = starts_with("y"))
+
+
+FPCA_knot_pred_plot <- ggplot(predCurves) +
+  aes(group = participant, color = participant) +
+  geom_path(aes(x = y_x_mean_z, y = y_y_mean_z)) +
+  geom_path(aes(x = y_l_x_mean_z, y = y_l_y_mean_z), linetype = "dotted") +
+  geom_path(aes(x = y_u_x_mean_z, y = y_u_y_mean_z), linetype = "dotted") +
+  xlab("x_mean_z") + ylab("y_mean_z") +
+  theme(legend.position = "bottom")
+```
+
+The predicted plots from the linear model for the participants look like this:
+
+```{r}
+#| fig-cap: "FPCA: Predicted tongue contours by participant based on PC1 score"
+#| label: fig-fpca_cartesian_static_pred
+
+FPCA_knot_pred_plot
+```
+
+In comparison with the GAM predictions (e.g., @fig-gam_static_cartesian_pred_resolution), this looks very similar in general although this is only the prediction based on the first PC score. But there are also differences. Especially the tongue shape of participant 23 looks different than in the GAM prediction plot. In the FPCA prediction, the tongue shape of participant 23 is very close to the tongue shapes of participants 4 and 6, while in the GAM prediction, the tongue tip points more upward and the general shape looks more like that of participant 10.
+
+Keep in mind that this plot only includes the variation that is described by PC1 and does not include the variation covered by other PCs. The variation of participant 23's exact tongue shape may be covered by one of the other PCs.
+
+
+# dynamic data
+
+After the static analyses, we will now try to expand the models so they also include the time axis. The `time` variable is an additional independent variable in our data set.
+
+Read in the (Cartesian) data set: 
+```{r}
+rhotic_data <- readRDS("../data/RDS/rhotic_data.rds")
+```
+
+This data set is similar to the one we used for the static data -- with the addition that it has a `normtime` variable and has multiple tongue contours for one rhotic (one for each frame within the rhotic). The rhotics consist of a varying number of time frames since the rhotics have varying lengths (shortest /r/ = 1 frame (extended to 2 frames in the `data_preparation` script); longest /r/ = 15 frames), so the "clips" of the tongue moving contain different numbers of frames (different than in @Gubian2025 where all clips have exactly 6 frames). In @sec-dyn-fpca-polar we will change that and interpolate the data.
+
+When picking one rhotic as an example, we can observe how the tongue moves over time. Here's the example of the /r/ in the word "*R*otation" being articulated by all of the participants:
+
+```{r}
+dynamic_data_example <- rhotic_data |> filter(target == "Rotation") %>% 
+  ggplot(aes(x_z, y_z, group = frame_id_file, colour = normtime)) +
+  coord_cartesian() +
+  geom_point() +
+  geom_path(alpha = 0.5) +
+  facet_wrap(vars(participant), ncol = 4)
+```
+
+```{r}
+#| fig-cap: "Example of dynamic data; target word \"*R*otation\" for all participants"
+#| label: fig-dynamic_data_ex
+
+dynamic_data_example
+```
+
+In this plot, the dark blue color marks the beginning of the rhotic, the light blue color the end of the rhotic. It can be observed that most of the participants lower their tongue (or at least their tongue tip) during the articulation of the rhotic -- the only exception being participant 23, who raises their tongue and only lowers it in the very last frame.
+
+## GAMM
+
+### Polar coordinates {#sec-dyn-gam-polar}
+
+Read in the data set containing the dynamic Polar coordinates:
+```{r}
+rhotic_data_polar <- readRDS("../data/RDS/rhotic_data_polar_dyn.rds")
+```
+
+We will again perform a Procrustean angle normalization as in @sec-static-polar-procrustean [@Gubian2025]:
+
+```{r}
+angle_range <- rhotic_data_polar  %>% 
+  filter(knot %in% range(knot)) %>% # first and last knot
+  group_by(knot) %>% 
+  summarise(median_angle = median(angle)) %>% 
+  pull(median_angle) %>% 
+  sort()
+
+angle_grid <- seq(angle_range[1], angle_range[2], length.out=11)
+
+proc_polar_curves <- rhotic_data_polar  %>% 
+  group_by(participant, clip_id, normtime, target) %>% 
+  # interpolation
+  reframe(bind_cols(
+    knot = rev(seq(along.with = angle_grid, from = 0)), # fake knots, needed for AR1 term in GAM
+    approx(angle, radius, angle_grid, rule = 2) %>% as_tibble()
+    )) %>% 
+  rename(angle = x,radius = y)
+```
+
+Now we can plot one example of the Polar data. As above, we choose the example target "*R*otation"
+
+```{r}
+dataset_ex_flat <- proc_polar_curves %>% filter(target == "Rotation") %>%
+  ggplot() +
+  aes(x = angle, y= normtime) +
+  geom_raster(aes(fill = radius)) +
+  facet_grid(~ participant) +
+  scale_x_reverse() +
+  scale_fill_gradientn(colours = terrain.colors(10))
+```
+
+```{r}
+#| fig-cap: "Example of polar dynamic data displayed flat"
+#| label: fig-dynamic_data_polar_flat_ex
+
+dataset_ex_flat
+```
+
+What do we see?
+
+* y-axis: normtime -- at the bottom is the start of the rhotic, at the top is the end of the rhotic
+* x-axis: angle -- on the left of each plot is the biggest angle = the left side of the tongue = tongue root. At the right of each plot is the smallest angle = right side of the tongue = tongue tip.
+* color: radius -- green = small radius = tongue is close to the origin; yellow-ish/brown-ish = medium radius = tongue is further away from the origin; white = large radius = tongue is far away from the origin
+
+an example: We're looking at the tongue tip of participant 6, so the rightmost part of their plot that has the smallest angle. At the bottom (at 0 (\%) of the normtime), the plot starts with a very light-brown color. That's the very start of the rhotic. This means that the tongue tip has to be far away from the origin, so it's probably raised in the beginning. If when following the tongue tip to the top, so up to the end (time-wise) of the rhotic, we observe that the color becomes a darker brown over time and even gets yellow-ish at the very top (at 100 \%). This means that the radius gets smaller: the tongue tip position changes and moves closer to the origin. So, the tongue tip of participant 6 probably starts with being raised and then moves downward over the course of the rhotic. The opposite is true for the tongue tip of participant 23: Here, the color on the bottom of the very right of the plot is yellow-ish and gets white at a normtime of \~ 80 \%, what means that the tongue tip moves upward.
+
+We will also picture the same plot as a normal Polar plot:
+
+```{r}
+dataset_ex_polar <- proc_polar_curves %>% filter(target == "Rotation") %>%
+  ggplot() +
+  aes(angle, radius, group = normtime, color = normtime) +
+  geom_path() +
+  facet_wrap(vars(participant), ncol = 3) +
+  radial_plot(5) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "Example of polar dynamic data displayed in a polar coordinate system"
+#| label: fig-dynamic_data_polar_ex
+
+dataset_ex_polar
+```
+
+We're doing the same as in @sec-GAMM-polar-coordinates but use a tensor product smooth interaction, containing `angle` and `normtime` instead of the `angle`-smooth [@Gubian2025; @Wieling2018].
+
+```{r}
+GAM_dyn_polar <- bam(radius ~ participant + te(angle, normtime, by = factor(participant)),
+            discrete = TRUE,
+            family = 'scat',
+            data = proc_polar_curves
+)
+AR1.rho <- acf_resid(GAM_dyn_polar)[2]
+```
+
+Taking autocorrelation into account:
+
+```{r}
+GAM_dyn_polar <- bam(radius ~ participant + te(angle, normtime, by = factor(participant)),
+                          discrete = TRUE,
+                        family = 'scat',
+                        rho = AR1.rho,
+                        AR.start = proc_polar_curves %>% pull(knot) == 0,
+                        data = proc_polar_curves
+)
+summary(GAM_dyn_polar)
+```
+
+::: {.callout-note collapse="true"}
+### GAM check
+```{r}
+gam.check(GAM_dyn_polar)
+
+acf_resid(GAM_dyn_polar)
+```
+:::
+
+Get the predictions and plot:
+
+```{r}
+normtime_grid <- (0:5)/5
+pred <- get_predictions(GAM_dyn_polar,
+                        cond = list(angle = angle_grid_plot, 
+                                    normtime = normtime_grid,
+                                    participant = factor(rhotic_data_static_polar$participant) %>% levels()),
+                        print.summary = FALSE)
+
+gam_dyn_polar_flat_plot <- ggplot(pred) +
+  aes(x = angle, y = normtime, group = participant) +
+  geom_raster(aes(fill = fit)) +
+  facet_grid(~ participant) +
+  scale_x_reverse() +
+  scale_fill_gradientn(colours = terrain.colors(10))
+
+gam_polar_dyn_polar_plot <- ggplot(pred) +
+  aes(x = angle, y = fit, group = normtime, color = normtime) +
+  geom_path() +
+  facet_wrap(vars(participant), ncol = 3) +
+  radial_plot(5) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "GAM prediction of polar dynamic data (flat version)"
+#| label: fig-gam_dynamic_data_polar_flat
+
+gam_dyn_polar_flat_plot
+```
+
+```{r}
+#| fig-cap: "GAM prediction of polar dynamic data (polar version)"
+#| label: fig-gam_dynamic_data_polar
+
+gam_polar_dyn_polar_plot
+```
+
+It gets evident from the plots that the tongue movements are rather small but highly individual for the participants:
+
+* participant 4 slightly moves their whole tongue downward
+* participant 5, 6 and 9 move their tongue slightly backward
+* participant 8 moves their tongue tip upward
+* participant 10 and 23 moves their tongue tip first upward and then downward (like a tap)
+* participant 20 moves their tongue downward and backward
+
+This can give us a general hint about the articulation of the participants, but it would probably be more meaningful if we took the phonetic surrounding (e.g., following vowel) into account [what I will do in my dissertation].
+
+We look at the different tongue shapes of the participants at one time point to compare them, e.g., at 0.5/50 \% of the normalized time:
+
+```{r}
+sec_time <- 0.5
+pred <- get_predictions(GAM_dyn_polar,
+                        cond = list(angle = angle_grid_plot,
+                                    normtime = sec_time,
+                                    participant = factor(rhotic_data_static_polar$participant) %>% levels()),
+                        print.summary = FALSE)
+
+sec_time_plot <- ggplot(pred) +
+  aes(x = angle, y = fit, group = participant ) +
+  geom_line(mapping = aes(color = participant)) +
+  geom_ribbon(mapping = aes(ymin = fit - CI, ymax = fit + CI, fill = participant), alpha = 0.5) +
+  theme_light() +
+  radial_plot(5) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "Cross-section of GAM prediction of polar dynamic data at normalized time point 0.5"
+#| label: fig-gam_dynamic_data_polar_sec_time
+
+sec_time_plot
+```
+
+Also, we look at one specific point on the shapes (= one angle value) and see how this point changes over time. Here we will take the "middle" $\pi$/2
+
+```{r}
+sec_angle <- pi/2
+pred <- get_predictions(GAM_dyn_polar,
+                        cond = list(angle = sec_angle,
+                                    normtime = normtime_grid,
+                                    participant = factor(rhotic_data_static_polar$participant) %>% levels()),
+                        print.summary = FALSE)
+
+sec_angle_plot <- ggplot(pred) +
+  aes(x = normtime, y = fit, group = participant ) +
+  geom_line(mapping = aes(color = participant)) +
+  geom_ribbon(mapping = aes(ymin = fit - CI, ymax = fit + CI, fill = participant), alpha = 0.5) +
+  theme_light() +
+  ylab("Radius") +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "Cross-section of GAM prediction of polar dynamic data at angle value $\\pi/2$"
+#| label: fig-gam_dynamic_data_polar_sec_time_mid
+
+sec_angle_plot
+```
+
+Or we can look at the angle where the tongue tips approximately are (We're taking the value $\pi * 7/16$, because that's very close to the tongue tip):
+
+```{r}
+sec_angle <- pi*7/16
+pred <- get_predictions(GAM_dyn_polar,
+                        cond = list(angle = sec_angle,
+                                    normtime = normtime_grid,
+                                    participant = factor(rhotic_data_static_polar$participant) %>% levels()),
+                        print.summary = FALSE)
+
+sec_angle_plot_tt <- ggplot(pred) +
+  aes(x = normtime, y = fit, group = participant ) +
+  geom_line(mapping = aes(color = participant)) +
+  geom_ribbon(mapping = aes(ymin = fit - CI, ymax = fit + CI, fill = participant), alpha = 0.5) +
+  theme_light() +
+  ylab("Radius") +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "Cross-section of GAM prediction of polar dynamic data approximately at tongue tip"
+#| label: fig-gam_dynamic_data_polar_sec_time_tt
+
+sec_angle_plot_tt
+```
+
+It's very interesting to see how the tongue tip of participant 23 moves upward and then takes a turn at a normtime of around 80 \%. It could as well be the case that other participants also do taps and move their tongue up and then downward but that this cancels out due to them not doing it consistently at the same normtime.
+
+### Cartesian coordinates
+
+#### Univariate GAMM
+
+We will do the analysis similar as with the static data, but additionally, we will take into account the `normtime` variable. We've got a dimensional interaction between `knot` and `normtime` -- this means that we need to introduce a te() smooth as above with the Polar data:
+
+```{r}
+# create compound factor participant.dim for all combinations of participant and dimension
+rhotic_data_long <- rhotic_data %>% 
+             pivot_longer(c(x_z, y_z), names_to = 'dimension', values_to = 'position') %>% 
+             unite("participant.dim", c(participant, dimension), sep = ".") %>% 
+             mutate(participant.dim = factor(participant.dim)) %>% 
+             # order to capture AR along knots
+             arrange(sort_id, participant.dim, knot)
+
+# calculate GAM
+GAM_dyn <- bam(position ~ participant.dim + 
+             te(knot, normtime, by = participant.dim),
+           data = rhotic_data_long,
+           family = 'scat',
+           discrete = TRUE)
+
+# autocorellation:
+AR1.rho_dyn <- acf_resid(GAM_dyn)[2]
+```
+
+```{r}
+#Model that considers autocorrelation in the residuals
+GAM_dyn <- bam(position ~ participant.dim + 
+                 te(knot, normtime, by = participant.dim),
+           data = rhotic_data_long,
+           rho = AR1.rho_dyn, # error model for residuals
+            AR.start = rhotic_data_long %>% pull(knot) == 0,
+           family = 'scat',
+           discrete = TRUE)
+summary(GAM_dyn)
+```
+
+Check the dynamic GAM and the distribution of residuals:
+
+::: {.callout-note collapse="true"}
+#### GAM check
+```{r}
+gam.check(GAM_dyn)
+
+acf_resid(GAM_dyn)
+```
+:::
+
+Now that we calculated our model, we plot the predictions of the tongue movement over time per participant.
+
+```{r}
+gam_dyn_pred <- get_predictions(GAM_dyn,
+                        cond = list(knot = 0:10,
+                                    normtime = c(0,0.25,0.5,0.75,1), # five time points
+                                    participant.dim = rhotic_data_long$participant.dim %>% levels()),
+                        se = FALSE,
+                        print.summary = FALSE) %>% 
+  separate_wider_delim(participant.dim, ".", names = c("participant", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = "fit") %>% 
+  mutate(part.normtime = paste0(participant, ".", normtime)) # for plotting
+
+gam_dyn_pred_plot <- ggplot(gam_dyn_pred) +
+  aes(x_z, y_z, group = part.normtime, color = normtime) +
+  geom_path() +
+  # geom_point(aes(color = participant)) +
+  geom_text(aes(label = knot), check_overlap = TRUE,
+            nudge_x = .05, nudge_y = .05, show.legend = FALSE) +
+  facet_wrap(vars(participant), ncol = 4) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: fig-gam_dyn_pred_plot
+#| fig-cap: "GAM prediction of dynamic polar data"
+
+gam_dyn_pred_plot
+```
+
+We can observe great differences in the tongue movement of the participants. Some participants barely show any tongue movement during the articulation of the rhotic (participant 4, 5, 6, 9), while the range of movement of other participants is rather big. It is interesting to see that the tongue movement of the participants seemingly using front rhotics (participant 8, 10 and 23) is larger in general. But there are also individual differences within this group -- while participant 8 seems to mainly move their tongue upward, the predicted contours of participant 10 and 23 look like they first move upward, then move downward. If we tried to interpret these results, we could say that the predictions of participant 10 and 23 look more like taps. The only person whose tongue contours look like they produce a back/uvular rhotic and has a lot of tongue movement is participant 20. Their tongue tip clearly moves downward as time progresses.
+
+We chose to display the predictions using five time points (at 0 %, 25 %, 50 %, 75 % and 100 % of the time) in the plot above. Of course we can also change that and display more time points to get a higher resolution on the time axis:
+
+```{r}
+gam_dyn_pred_f <- get_predictions(GAM_dyn,
+                        cond = list(knot = 0:10,
+                                    normtime = (0:10)/10,
+                                    participant.dim = rhotic_data_long$participant.dim %>% levels()),
+                        se = FALSE,
+                        print.summary = FALSE) %>% 
+  separate_wider_delim(participant.dim, ".", names = c("participant", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = "fit") %>% 
+  mutate(part.normtime = paste0(participant, ".", normtime)) # for plotting
+
+gam_dyn_pred_plot_f <- ggplot(gam_dyn_pred_f) +
+  aes(x_z, y_z, group = part.normtime, color = normtime) +
+  geom_path() +
+  facet_wrap(vars(participant), ncol = 4) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: fig-gam_dyn_pred_plot_high
+#| fig-cap: "GAM prediction of dynamic polar data; higher resolution on time axis"
+
+gam_dyn_pred_plot_f
+```
+
+
+## (M)FPCA
+
+### Polar coordinates {#sec-dyn-fpca-polar}
+
+We will do it similar as in @sec-fpca-polar-coordinates. We will create a `funData` object, this time with two dimensions instead of one. Again, we want to predict `radius` by `angle * time`. We use the Procrustean normalized data from @sec-dyn-gam-polar.
+
+Since we now need fixed normtime-points that are the same for every tongue contour, we need to interpolate the data set with regard to `normtime`. We take the 6 time points that we also took for displaying the GAM predictions (e.g., in @fig-gam_dynamic_data_polar (0, 0.2, 0.4, 0.6, 0.8, 1.0)) to create data points.
+
+```{r}
+proc_polar_curves_norm <- proc_polar_curves %>% 
+  group_by(participant, clip_id, angle) %>% 
+  # interpolation
+  reframe(bind_cols(
+    approx(normtime, radius, normtime_grid, rule = 2) %>% as_tibble()
+    )) %>% 
+  rename(normtime = x,radius = y)
+```
+
+Now we create the `funData` object:
+
+```{r}
+# build a funData object
+
+argvals <- list(normtime=normtime_grid, angle=angle_grid)
+
+# X: array of dim c(nFrames, length(normtime_grid), length(angle_grid))
+X <- proc_polar_curves_norm %>%
+  pivot_wider(id_cols = c(clip_id, normtime), names_from = angle, values_from = radius) %>%
+  select(-normtime) %>%
+  nest(.by = clip_id) %>%
+  pull(data) %>%
+  lapply(as.matrix) %>%
+  abind(along = 0) # combine multi-dimensional arrays
+
+fpca_polar_dyn_curves <- funData(argvals, X)
+fpca_polar_dyn_curves
+```
+
+We've now got a `funData` object with 6 sampling points in regard to normtime and 11 sampling points in regard to angle (= our fake knots).
+
+Calculate the FPCA:
+
+```{r}
+# FCP_TPA
+fpca_polar_dyn <- MFPCA(fpca_polar_dyn_curves %>% multiFunData(),
+              M = 5, # number of principle components to calculate
+              # FCP_TPA is one of the possible multidim. support parametrizations
+              # alphaRange = "A list of length 2 with entries v and w, containing the range of smoothness parameters to test for each direction" (source: MFPCA documentation)
+              uniExpansions = list(list(type = "FCP_TPA",
+                                        npc = 5,
+                                        alphaRange = list(v = c(10^-2, 10^2), w = c(10^-3, 10^3)))) 
+)
+```
+
+
+```{r}
+# Prop of explained var
+PropExpVar <- round(fpca_polar_dyn$values/sum(fpca_polar_dyn$values), digits = 3)
+PropExpVar
+```
+
+First PC explains 53 \% of the data, second PC explains 25 \% of the data, third 11 \%.
+
+```{r}
+nPC <- 2 # we only look at the first 2 PCs from now on
+
+# scores st. dev.
+sdFun <- fpca_polar_dyn$values %>% sqrt()
+
+# PC curves to be plotted
+PCcurves_polar_dyn <- expand_grid(PC = 1:nPC,
+                        fractionOfStDev = c(-1, 0, 1)) %>%
+  group_by(PC, fractionOfStDev) %>%
+  reframe(
+    (fpca_polar_dyn$meanFunction[[1]]@X[1,,] + fractionOfStDev * sdFun[PC] * fpca_polar_dyn$functions[[1]]@X[PC,,]) %>% 
+      `colnames<-`(angle_grid) %>% 
+      as_tibble() %>% 
+      bind_cols(normtime = normtime_grid)
+  ) %>% 
+  pivot_longer(cols = -c(PC, fractionOfStDev, normtime), names_to = "angle", values_to = "radius") %>% 
+  mutate(angle = as.numeric(angle))
+  
+# Plot
+FPCA_polar_dyn_curves_plot <- ggplot(PCcurves_polar_dyn %>% rename(`score/std` = fractionOfStDev)) +
+  aes(x = angle, y = radius, group = normtime, color = normtime) +
+  geom_path() +
+  facet_grid(PC ~ `score/std`, 
+             labeller = labeller(PC = ~ str_glue("PC{.x}"), `score/std` = label_both),
+             ) +
+  radial_plot(5) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: fig-fpca_polar_dyn_curves_plot
+#| fig-cap: "FPCA: 2 Principle Components for Polar dynamic data"
+
+FPCA_polar_dyn_curves_plot
+```
+
+The PCs again capture the whole variation of tongue movement over time of the entire dataset. The top row shows the predictions using the PC1 score, the bottom row the ones using the PC2 score. On the middle columns, the mean tongue movement is pictured. On the left, the deviation from the mean of -1 standard deviation of the PC scores is pictured, on the right, +1 standard deviation.
+
+The mean function is a tongue shape with an arched tongue dorsum and a tongue tip that is rather neutral (it's not exactly pointing down but it's also not pointing upward as well). There is hardly any movement, if one looks closely, it becomes evident that the tongue moves upward slightly as a whole. PC1 seems to describe a variation of the movement in the tongue tip region -- on the -1 sd plot, the tongue tip moves upward as time progresses, on the +1 sd side, the tongue tip moves very slightly downward. PC2 captures a variation of the whole tongue moving either upward (-1 sd) or downward (+1 sd).
+
+Now we want to see if there is a difference in the PC scores between the participants:
+
+```{r}
+# collect PC scores
+PCscores_polar_dyn <- fpca_polar_dyn$scores[, 1:nPC] %>%
+  `colnames<-`(paste0("s", 1:nPC)) %>%
+  as_tibble() %>%
+  bind_cols(proc_polar_curves_norm %>% distinct(clip_id, participant), .)
+
+# boxplots PC scores by participant
+FPCA_polar_dyn_boxplot <- PCscores_polar_dyn %>% 
+  pivot_longer(cols = paste0("s", 1:nPC), 
+               names_to = "PC", values_to = "score") %>% 
+  filter(PC %in% str_c("s", 1:nPC)) %>% 
+  ggplot() +
+  aes(x = participant, y = score, color = participant) +
+  geom_boxplot() +
+  facet_wrap(~ PC) +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
+```
+
+```{r}
+#| label: fig-fpca_polar_dyn_boxplot
+#| fig-cap: "FPCA: distribution of PC scores by participant"
+
+FPCA_polar_dyn_boxplot
+```
+
+There are differences between the participants in both of the PC scores. It seems like they are both correlated to the variable `participant`. Again, we can calculate linear models to confirm that the scores are correlated to `participant` and plot the predicted tongue movement of the participants made by the linear models.
+
+
+```{r}
+mod_s1 <- lm(s1 ~ participant, data = PCscores_polar_dyn)
+mod_s1 %>% summary()
+```
+
+```{r}
+mod_s2 <- lm(s2 ~ participant, data = PCscores_polar_dyn)
+mod_s2 %>% summary()
+```
+Plot prediction PC1:
+
+```{r}
+predCurves_s1 <- emmeans(mod_s1, pairwise ~ participant)$emmeans %>% 
+  as_tibble() %>% 
+  group_by(participant) %>% 
+reframe(
+    (fpca_polar_dyn$meanFunction[[1]]@X[1,,] + emmean * fpca_polar_dyn$functions[[1]]@X[s,,]) %>% 
+      `colnames<-`(angle_grid) %>% 
+      as_tibble() %>% 
+      bind_cols(normtime = normtime_grid)
+  ) %>% 
+  pivot_longer(cols = -c(participant, normtime), names_to = "angle", values_to = "radius") %>% 
+  mutate(angle = as.numeric(angle))
+
+FPCA_polar_dyn_pred_s1_plot <- ggplot(predCurves_s1) +
+  aes(x = angle, y = radius, group = normtime, color = normtime) +
+  geom_path() +
+  facet_wrap(vars(participant), ncol = 3) +
+  radial_plot(5) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: fig-fpca_polar_dyn_pred_s1_plot
+#| fig-cap: "FPCA: Predicted tongue contours by PC1 score"
+
+FPCA_polar_dyn_pred_s1_plot
+```
+
+As already expected, we observe a lot of variation in the tongue tip area of the participants. What's interesting this time are the differences in the tongue tip movements. While the tongue tip of participant 6, 8 and 10 show an upward movement, the tongue tip of participant 9 moves downward. Participants 4, 5 and 20 show barely any movement at all. Participant 23's tongue tip first moves upward then downward again.
+
+
+```{r}
+predCurves_s2 <- emmeans(mod_s2, pairwise ~ participant)$emmeans %>% 
+  as_tibble() %>% 
+  group_by(participant) %>% 
+reframe(
+    (fpca_polar_dyn$meanFunction[[1]]@X[1,,] + emmean * fpca_polar_dyn$functions[[1]]@X[s,,]) %>% 
+      `colnames<-`(angle_grid) %>% 
+      as_tibble() %>% 
+      bind_cols(normtime = normtime_grid)
+  ) %>% 
+  pivot_longer(cols = -c(participant, normtime), names_to = "angle", values_to = "radius") %>% 
+  mutate(angle = as.numeric(angle))
+
+FPCA_polar_dyn__pred_s2_plot <- ggplot(predCurves_s2) +
+  aes(x = angle, y = radius, group = normtime, color = normtime) +
+  geom_path() +
+  facet_wrap(vars(participant), ncol = 3) +
+  radial_plot(5) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: fig-fpca_polar_dyn_pred_s2_plot
+#| fig-cap: "FPCA: Predicted tongue contours by PC2 score"
+
+FPCA_polar_dyn__pred_s2_plot
+```
+
+s2 does not show many differences between the participants' tongue contour movements but more general tongue shape differences in the tongue tip area (e.g.,  tongue tip of participants 8 and 23 being slightly higher than most others).
+
+### Cartesian coordinates
+
+Now we will calculate a multivariate fpca model that predicts both `x` and `y` values by the predictors `normtime` and `knot`.
+
+We're doing the same as in @sec-dyn-fpca-polar and interpolate on the normtime dimension so every clip has the same number of timepoints/frames:
+
+```{r}
+# i'm pretty sure this is not the best way to do this ... but it works
+cartesian_curves_norm <- rhotic_data %>% 
+  group_by(participant, clip_id, knot) %>% 
+  # interpolation
+  reframe(bind_cols(
+    approx(normtime, x_z, normtime_grid, rule = 2) %>% as_tibble() # interpolate x_z by normtime_grid
+    )) %>% 
+  rename(normtime = x,x_z = y) %>% 
+  merge( # merge interpolated x_z and interpolated y_z values
+    rhotic_data %>% 
+  group_by(participant, clip_id, knot) %>% 
+  # interpolation
+  reframe(bind_cols(
+    approx(normtime, y_z, normtime_grid, rule = 2) %>% as_tibble() # interpolate y_z by normtime_grid
+    )) %>% 
+  rename(normtime = x, y_z = y), by = c("participant", "clip_id", "knot", "normtime")
+  ) %>% mutate(knot = as.integer(knot)) %>% arrange(knot)
+```
+
+Build a `funData` object:
+
+```{r}
+argvals <- list(normtime=normtime_grid, knot=0:10)
+# curvesFun is a multiFunData with two response outcomes (x, y) -> predicted variables
+# each of which is an array of dim c(nClips, length(normtime_grid), number of knots)
+cartesian_curves_dyn <- multiFunData( 
+                     lapply(c('x_z', 'y_z'), function(dim) {
+                       funData(argvals,
+                       cartesian_curves_norm %>%
+                         pivot_wider(id_cols = c(clip_id, normtime), names_from = knot, values_from = {{dim}}) %>% 
+                         select(-normtime) %>% 
+                         nest(.by = clip_id) %>% 
+                         pull(data) %>% 
+                         lapply(as.matrix) %>% 
+                         abind(along = 0)
+                     )}))
+cartesian_curves_dyn
+```
+
+Same procedure as in @sec-dyn-fpca-polar:
+
+```{r}
+# FCP_TPA
+# the same base expansion applied to x and y 
+uniExpansion <- list(type = "FCP_TPA",
+                                        npc = 5,
+                                        alphaRange = list(v = c(10^-2, 10^2), w = c(10^-3, 10^3)))
+fpca_cartesian_dyn <- MFPCA(cartesian_curves_dyn,
+              M = 5,
+              uniExpansions = list(uniExpansion, uniExpansion)
+)
+
+# Prop of explained var
+PropExpVar <- round(fpca_cartesian_dyn$values/sum(fpca_cartesian_dyn$values), digits = 3)
+```
+
+```{r}
+PropExpVar
+```
+
+PC1 explains 54 \% of the variation in the data, PC2 25 \% and PC3 11 \%.
+
+```{r}
+nPC <- 2 # working with two PCs again
+# scores st. dev.
+sdFun <- fpca_cartesian_dyn$values %>% sqrt()
+
+# PC curves to be plotted
+PCcurves_cartesian_dyn <- expand_grid(PC = 1:nPC,
+                        fractionOfStDev = c(-1, 0, 1),
+                        dim = 1:2) %>%
+  group_by(PC, fractionOfStDev, dim) %>%
+  reframe(
+    (fpca_cartesian_dyn$meanFunction[[dim]]@X[1,,] + fractionOfStDev * sdFun[PC] * fpca_cartesian_dyn$functions[[dim]]@X[PC,,]) %>% 
+      `colnames<-`(0:10) %>% 
+      as_tibble() %>% 
+      bind_cols(normtime = normtime_grid)
+  ) %>% 
+  pivot_longer(cols = -c(PC, fractionOfStDev, normtime, dim), names_to = "knot", values_to = "pos") %>% 
+  mutate(knot = as.integer(knot),
+         dim = factor(dim, levels = 1:2, labels = c('x_z','y_z'))) %>% 
+  pivot_wider(names_from = dim, values_from = pos)
+  
+# Plot
+FPCA_cartesian_dyn_plot <- ggplot(PCcurves_cartesian_dyn %>% rename(`score/std` = fractionOfStDev)) +
+  aes(x = x_z, y = y_z, group = normtime, color = normtime) +
+  geom_path() +
+  facet_grid(PC ~ `score/std`, 
+             labeller = labeller(PC = ~ str_glue("PC{.x}"), `score/std` = label_both),
+             ) +
+  theme(legend.position = "bottom")
+
+# collect PC scores
+PCscores_cartesian_dyn <- fpca_cartesian_dyn$scores[, 1:nPC] %>%
+  `colnames<-`(paste0("s", 1:nPC)) %>%
+  as_tibble() %>%
+  bind_cols(cartesian_curves_norm %>% distinct(clip_id, participant), .)
+
+# boxplots PC scores by participant
+FPCA_cartesian_dyn_scores_plot <- PCscores_cartesian_dyn %>% 
+  pivot_longer(cols = paste0("s", 1:nPC), 
+               names_to = "PC", values_to = "score") %>% 
+  filter(PC %in% str_c("s", 1:nPC)) %>% 
+  ggplot() +
+  aes(x = participant, y = score, color = participant) +
+  geom_boxplot() +
+  facet_wrap(~ PC) +
+  theme(legend.position = "bottom")
+```
+
+Plot:
+
+```{r}
+#| label: fig-fpca_cartesian_dyn_plot
+#| fig-cap: "FPCA: 2 Principle Components for Cartesian dynamic data"
+
+FPCA_cartesian_dyn_plot
+```
+
+The plot is structured similarly to @fig-fpca_polar_dyn_curves_plot. Instead of angle/radius values, x/y values are plotted. It is striking that both PCs show a lot of variation in regard to the tongue shape. A small PC1 score shows a tongue shape with an upward-pointing tongue tip. Regarding the time axis, the tongue tip moves upward as time progresses. A large PC1 score pictures a downward-pointing tongue tip. In the time axis, the tongue tip also moves downward over time. A small PC2 score pictures a tongue contour with a downward-pointing tongue tip and a backward tongue movement in the tongue dorsum area. A large PC2 score pictures barely any tongue movement but an overall raised tongue (higher y-value).
+
+```{r}
+#| label: fig-fpca_cartesian_dyn_scores_plot
+#| fig-cap: "FPCA: distribution of PC scores by participant"
+
+FPCA_cartesian_dyn_scores_plot
+```
+
+When comparing the PC scores of the participants, it becomes evident that s1 differs while s2 doesn't. We can deduce that s1 probably correlates with the variable `participant` while s2 does not.
+
+We can test the correlation of s1 and `participant` using a linear model again:
+
+```{r}
+mod_s1 <- lm(s1 ~ participant, data = PCscores_cartesian_dyn)
+mod_s1 %>% summary()
+```
+
+Pairwise comparisons of participants using `emmeans`:
+
+```{r}
+emmeans(mod_s1, pairwise ~ participant)
+```
+
+```{r}
+predCurves_cartesian_dyn <- emmeans(mod_s1, pairwise ~ participant)$emmeans %>% 
+  as_tibble() %>% 
+  expand_grid(dim = 1:2) %>% 
+  group_by(participant, dim) %>% 
+reframe(
+    (fpca_cartesian_dyn$meanFunction[[dim]]@X[1,,] + emmean * fpca_cartesian_dyn$functions[[dim]]@X[s,,]) %>% 
+      `colnames<-`(0:10) %>% # knots
+      as_tibble() %>% 
+      bind_cols(normtime = normtime_grid)
+  ) %>% 
+  pivot_longer(cols = -c(participant, normtime, dim), names_to = "knot", values_to = "pos") %>% 
+  mutate(knot = as.integer(knot),
+         dim = factor(dim, levels = 1:2, labels = c('x_z','y_z'))) %>% 
+  pivot_wider(names_from = dim, values_from = pos)
+
+FPCA_cartesian_dyn_pred_plot <- ggplot(predCurves_cartesian_dyn) +
+  aes(x = x_z, y = y_z, group = normtime, color = normtime) +
+  geom_path() +
+  facet_grid(~ participant) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: fig-fpca_cartesian_dyn_pred_plot
+#| fig-cap: "FPCA: Predicted tongue contours by PC1 score"
+
+FPCA_cartesian_dyn_pred_plot
+```
+
+The predicted tongue contours differ quite a lot. While the tongue tip of most participants curve downward, the contour of participant 8 bends clearly upward. For participant 8, there is also an upward movement visible in the time axis. The same is true for participant 10. For both of these participants the tongue also moves back downward at the very end of the normtime. Particularly interesting is the fact that this is not the case for participant 23. Their predicted tongue contour shows a downward-curved tongue tip although most other predictions, e.g., @fig-gam_dyn_pred_plot, picture participant 23 with an upward-pointing tongue tip. Here, the variation concerning participant 23 might not be covered by PC1 but maybe by another PC-score.
+
+
+# References
+

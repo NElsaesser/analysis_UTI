@@ -1,0 +1,320 @@
+cat	init	count	target	condition	stress	type	syl_count	vowel_phon_ipa	preceding_consonant	SUBTLEX	dlex	maus_ipa	partner_word	vowel_short	vowel_place	consonant_manner	consonant_place	consonant_voice
+initial_unstressed_a	FALSE	1	einrahmen	präfix	unstressed	sylinitial	3	aː		0.83	0.16	ʔˈaɪn.raː.mən	Rahmen	a	a			
+initial_unstressed_a	FALSE	2	ausrasten	präfix	unstressed	sylinitial	3	a		2.91	0.07	ʔˈaʊs.ras.tən	Rast	a	a			
+initial_unstressed_a	FALSE	3	Jura	kein_präfix	unstressed	sylinitial	2	a		2.48	3.79	jˈuː.ra		a	a			
+initial_unstressed_a	FALSE	4	heiraten	kein_präfix	unstressed	sylinitial	2	aː		118.82	14.52	hˈaɪ.raː.tən	Rat	a	a			
+initial_stressed_a	FALSE	1	Beratung	präfix	stressed	sylinitial	3	aː		2.4	26.77	bə.rˈaː.tʊŋ	Rat	a	a			
+initial_stressed_a	FALSE	2	Umrandung	präfix	stressed	sylinitial	3	a		NA	0.43	ʔʊm.rˈan.dʊŋ	Rand	a	a			
+initial_stressed_a	FALSE	3	Moral	kein_präfix	stressed	sylinitial	2	aː		11.58	23.53	mo.rˈaːl		a	a			
+initial_stressed_a	FALSE	4	Charakter	kein_präfix	stressed	sylinitial	3	a		13.86	81.06	ka.rˈak.tɐ		a	a			
+initial_unstressed_vorne	FALSE	1	Einrichtung	präfix	unstressed	sylinitial	2	ɪ		10.63	33.52	ʔˈaɪn.rɪç.tʊŋ	Richter	i	front			
+initial_unstressed_vorne	FALSE	2	Unrecht	präfix	unstressed	sylinitial	3	ɛ		25	22.99	ʔˈʊn.rɛçt	Recht	e/ae	front			
+initial_unstressed_vorne	FALSE	3	Nachricht	kein_präfix	unstressed	sylinitial	2	ɪ		104.81	31.49	nˈaːx.rɪçt	Richter	i	front			
+initial_unstressed_vorne	FALSE	4	schwierig	kein_präfix	unstressed	sylinitial	2	ɪ		59.33	18.65	ʃvˈiː.rɪç		i	front			
+initial_stressed_vorne	FALSE	1	berühmt	präfix	stressed	sylinitial	3	yː		18.7	8.57	bə.rˈyːmt		ue	front			
+initial_stressed_vorne	FALSE	2	berieseln	präfix	stressed	sylinitial	3	iː		0.04	0.09	bə.rˈiː.zəln	Riese	i	front			
+initial_stressed_vorne	FALSE	3	Zigarette	kein_präfix	stressed	sylinitial	2	ɛ		20.99	18.05	tsi.ɡa.rˈɛt.ə	Rettung	e/ae	front			
+initial_stressed_vorne	FALSE	4	Gericht	kein_präfix	stressed	sylinitial	2	ɪ		45.4	62.32	ɡə.rˈɪçt	Richter	i	front			
+initial_unstressed_hinten	FALSE	1	einrollen	präfix	unstressed	sylinitial	3	ɔ		0.28	0.1	ʔˈaɪn.rɔl.ən	Rolle	o	back			
+initial_unstressed_hinten	FALSE	2	Anruf	präfix	unstressed	sylinitial	2	uː		76.07	5.17	ʔˈan.ruːf	Ruf	u	back			
+initial_unstressed_hinten	FALSE	3	Virus	kein_präfix	unstressed	sylinitial	2	ʊ		42.36	1.86	vˈiː.rʊs	rustikal	u	back			
+initial_unstressed_hinten	FALSE	4	Euro	kein_präfix	unstressed	sylinitial	2	o		7.83	1.37	ʔˈɔʏ.ro		o	back			
+initial_stressed_hinten	FALSE	1	umrunden	präfix	stressed	sylinitial	3	ʊ		0.08	0.16	ʔʊm.rˈʊn.dən	Runde	u	back			
+initial_stressed_hinten	FALSE	2	beruhigen	präfix	stressed	sylinitial	4	uː		39.57	7.86	bə.rˈuː.ɪ.ɡən	ruhig	u	back			
+initial_stressed_hinten	FALSE	3	Geruch	kein_präfix	stressed	sylinitial	3	ʊ		20.63	16.7	ɡə.rˈʊx		u	back			
+initial_stressed_hinten	FALSE	4	Beruf	kein_präfix	stressed	sylinitial	2	uː		23.78	37.59	bə.rˈuːf	Ruf	u	back			
+initial_stressed_a	TRUE	1	Ratte	target	stressed	wordinitial	2	a		22.28	2.31	rˈat.ə		a	a			
+initial_stressed_a	TRUE	2	Rand	target	stressed	wordinitial	2	a		10.67	23.34	rˈant	Umrandung	a	a			
+initial_stressed_a	TRUE	3	Rat	target	stressed	wordinitial	1	aː		53.98	66.99	rˈaːt	Beratung. heiraten	a	a			
+initial_stressed_a	TRUE	4	Rahmen	target	stressed	wordinitial	2	aː		7.24	97.01	rˈaː.mən	einrahmen	a	a			
+initial_stressed_a	TRUE	5	Rathaus	target	stressed	wordinitial	2	aː		6.85	8.44	rˈaːt.haʊs		a	a			
+initial_stressed_a	TRUE	6	Radio	target	stressed	wordinitial	3	aː		34.49	28.02	rˈaː.djo		a	a			
+initial_stressed_a	TRUE	7	Rast	target	stressed	wordinitial	2	a		5.12	3.16	rˈast	ausrasten	a	a			
+initial_unstressed_a	TRUE	1	Rabatt	target	unstressed	wordinitial	2	a		4.88	1.77	ra.bˈat		a	a			
+initial_unstressed_a	TRUE	2	Rakete	target	unstressed	wordinitial	3	a		16.02	3.51	rak.ˈeː.tə		a	a			
+initial_unstressed_a	TRUE	3	radikal	target	unstressed	wordinitial	3	a		1.81	6.29	ra.di.kˈaːl		a	a			
+initial_unstressed_a	TRUE	4	Rapunzel	target	unstressed	wordinitial	3	aː		0.24	0.04	rˈaː.pʊn.tsəl		a	a			
+initial_unstressed_a	TRUE	5	Radieschen	target	unstressed	wordinitial	3	aː		0.98	1.1	rˈaː.diː.ʃən		a	a			
+initial_unstressed_a	TRUE	6	rational	target	unstressed	wordinitial	3	a		1.65	4.96	rats.jo.nˈaːl		a	a			
+initial_unstressed_a	TRUE	7	Rassismus	target	unstressed	wordinitial	3	a		1.06	3.25	ras.ˈɪs.mʊs		a	a			
+initial_stressed_vorne	TRUE	1	Regen	target	stressed	wordinitial	2	eː		40.28	26.73	rˈeː.ɡən		e/ae	front			
+initial_stressed_vorne	TRUE	2	Reh	target	stressed	wordinitial	1	eː		2.64	1.46	rˈeː		e/ae	front			
+initial_stressed_vorne	TRUE	3	Rechnung	target	stressed	wordinitial	2	ɛ		29.84	41.5	rˈɛç.nʊŋ		e/ae	front			
+initial_stressed_vorne	TRUE	4	Rennen	target	stressed	wordinitial	3	ɛ		54.41	7.33	rˈɛn.ən		e/ae	front			
+initial_stressed_vorne	TRUE	5	Rätsel	target	stressed	wordinitial	2	ɛː		16.1	11.02	rˈɛː.tsəl		e/ae	front			
+initial_stressed_vorne	TRUE	6	Rechner	target	stressed	wordinitial	2	ɛ		2.91	5.35	rˈɛç.nɐ		e/ae	front			
+initial_stressed_vorne	TRUE	7	Recht	target	stressed	wordinitial	1	ɛ		459.74	214.41	rˈɛçt	Unrecht	e/ae	front			
+initial_stressed_vorne	TRUE	8	Rest	target	stressed	wordinitial	1	ɛ		114.3	34.25	rˈɛst		e/ae	front			
+initial_stressed_vorne	TRUE	9	Rettung	target	stressed	wordinitial	2	ɛ		17.56	13.37	rˈɛt.ʊŋ	Zigarette	e/ae	front			
+initial_stressed_vorne	TRUE	10	Regenschirm	target	stressed	wordinitial	3	eː		4.25	1.94	rˈeː.ɡən.ʃɪɐm		e/ae	front			
+initial_stressed_vorne	TRUE	11	Rentier	target	stressed	wordinitial	2	ɛ		1.06	0.78	rɛn.tˈiː.ə		e/ae	front			
+initial_stressed_vorne	TRUE	12	Redner	target	stressed	wordinitial	2	eː		1.38	25.39	rˈeː.dnɐ		e/ae	front			
+initial_unstressed_vorne	TRUE	1	Region	target	unstressed	wordinitial	2	e		5	16.92	re.ɡjˈoːn		e/ae	front			
+initial_unstressed_vorne	TRUE	2	Regisseur	target	unstressed	wordinitial	3	e		28.11	6.91	re.ʒɪs.ˈøːɐ		e/ae	front			
+initial_unstressed_vorne	TRUE	3	Reklame	target	unstressed	wordinitial	3	e		1.42	18.42	re.klˈaː.mə		e/ae	front			
+initial_unstressed_vorne	TRUE	4	Rekord	target	unstressed	wordinitial	2	e		7.13	2.43	re.kˈɔɐt		e/ae	front			
+initial_unstressed_vorne	TRUE	5	Religion	target	unstressed	wordinitial	3	e		12.4	47.54	re.li.ɡjˈoːn		e/ae	front			
+initial_unstressed_vorne	TRUE	6	Respekt	target	unstressed	wordinitial	2	e		54.02	11.45	res.pˈɛkt		e/ae	front			
+initial_unstressed_vorne	TRUE	7	Revolution	target	unstressed	wordinitial	4	e		13.07	61.26	re.vo.lu.tsjˈoːn		e/ae	front			
+initial_unstressed_vorne	TRUE	8	Rezept	target	unstressed	wordinitial	2	e		11.18	4.75	re.tsˈɛpt		e/ae	front			
+initial_unstressed_vorne	TRUE	9	Reptil	target	unstressed	wordinitial	2	ɛ		0.63	0.7	rɛp.tˈiːl		e/ae	front			
+initial_unstressed_vorne	TRUE	10	Rebell	target	unstressed	wordinitial	3	e		2.56	0.64	re.bˈɛl		e/ae	front			
+initial_unstressed_vorne	TRUE	11	Redakteur	target	unstressed	wordinitial	4	e		2.05	8.16	re.dak.tˈøːɐ		e/ae	front			
+initial_unstressed_vorne	TRUE	12	Republik	target	unstressed	wordinitial	3	e		11.02	84.45	re.pu.blˈiːk		e/ae	front			
+initial_stressed_vorne	TRUE	1	Riese	target	stressed	wordinitial	2	iː		2.87	3.51	rˈiː.zə	berieseln	i	front			
+initial_stressed_vorne	TRUE	2	Risiko	target	stressed	wordinitial	3	iː		34.49	11.5	rˈiː.zi.ko		i	front			
+initial_stressed_vorne	TRUE	3	Richter	target	stressed	wordinitial	2	ɪ		35.2	55.75	rˈɪç.tɐ	Nachricht. Gericht. Einrichtung	i	front			
+initial_stressed_vorne	TRUE	4	Rind	target	stressed	wordinitial	1	ɪ		0.83	1.76	rˈɪnt		i	front			
+initial_stressed_vorne	TRUE	5	Ring	target	stressed	wordinitial	1	ɪ		49.33	17.3	rˈɪŋ		i	front			
+initial_stressed_vorne	TRUE	6	Ritter	target	stressed	wordinitial	2	ɪ		24.02	17.33	rˈɪt.ɐ		i	front			
+initial_stressed_vorne	TRUE	7	Rippe	target	stressed	wordinitial	2	ɪ		1.69	0.86	rˈɪp.ə		i	front			
+initial_unstressed_vorne	TRUE	1	Ritual	target	unstressed	wordinitial	3	i		6.97	2.17	ri.tˈu.aːl		i	front			
+initial_unstressed_vorne	TRUE	2	Rivale	target	unstressed	wordinitial	3	i		0.71	0.78	ri.vˈaː.lə		i	front			
+initial_unstressed_vorne	TRUE	3	Risotto	target	unstressed	wordinitial	3	i		0.51	0.14	ri.zˈɔt.o		i	front			
+initial_unstressed_vorne	TRUE	4	Ricotta	target	unstressed	wordinitial	3	i		0.12	NA	ri.kɔt.ˈa		i	front			
+initial_stressed_hinten	TRUE	1	Rohr	target	stressed	wordinitial	1	oː		8.94	5.92	rˈoːɐ		o	back			
+initial_stressed_hinten	TRUE	2	Rose	target	stressed	wordinitial	2	oː		45.12	9.81	rˈoː.zə		o	back			
+initial_stressed_hinten	TRUE	3	Robbe	target	stressed	wordinitial	2	ɔ		0.28	0.19	rˈɔ.bə		o	back			
+initial_stressed_hinten	TRUE	4	Rock	target	stressed	wordinitial	1	ɔ		26.18	19.33	rˈɔk		o	back			
+initial_stressed_hinten	TRUE	5	Rolle	target	stressed	wordinitial	2	ɔ		90.36	119.34	rˈɔl.ə	einrollen	o	back			
+initial_stressed_hinten	TRUE	6	Rotwein	target	stressed	wordinitial	2	oː		2.01	4.92	rˈoːt.vaɪn		o	back			
+initial_stressed_hinten	TRUE	7	Rost	target	stressed	wordinitial	2	ɔ		1.26	2.47	rˈɔst		o	back			
+initial_unstressed_hinten	TRUE	1	Roman	target	unstressed	wordinitial	2	o		14.96	22.38	ro.mˈaːn		o	back			
+initial_unstressed_hinten	TRUE	2	Romantik	target	unstressed	wordinitial	2	o		4.45	13.1	ro.mˈan.tɪk		o	back			
+initial_unstressed_hinten	TRUE	3	Rosine	target	unstressed	wordinitial	3	o		0.28	0.38	ro.zˈiː.nə		o	back			
+initial_unstressed_hinten	TRUE	4	Rotation	target	unstressed	wordinitial	3	o		0.47	1.26	ro.ta.tsjˈoːn		o	back			
+initial_unstressed_hinten	TRUE	5	Robotik	target	unstressed	wordinitial	3	ɔ		0.31	0.07	rɔ.bˈoː.tɪk		o	back			
+initial_stressed_hinten	TRUE	1	Rudel	target	stressed	wordinitial	2	uː		1.97	2.58	rˈuː.dəl		u	back			
+initial_stressed_hinten	TRUE	2	Ruder	target	stressed	wordinitial	2	uː		7.99	4.45	rˈuː.dɐ		u	back			
+initial_stressed_hinten	TRUE	3	ruhig	target	stressed	wordinitial	2	uː		246.03	67.65	rˈuː.ɪç	beruhigen	u	back			
+initial_stressed_hinten	TRUE	4	Ruhm	target	stressed	wordinitial	1	uː		14.57	12.66	rˈuːm		u	back			
+initial_stressed_hinten	TRUE	5	Rucksack	target	stressed	wordinitial	2	ʊ		6.93	3.87	rˈʊk.zak		u	back			
+initial_stressed_hinten	TRUE	6	Ruf	target	stressed	wordinitial	2	uː		141.3	29.53	rˈuːf	Anruf. Beruf	u	back			
+initial_stressed_hinten	TRUE	7	Runde	target	stressed	wordinitial	2	ʊ		36.5	14.54	rˈʊn.də	umrunden	u	back			
+initial_unstressed_hinten	TRUE	1	Routine	target	unstressed	wordinitial	3	u		5.35	2.95	ru.tˈiː.nə		u	back			
+initial_unstressed_hinten	TRUE	2	Rumänien	target	unstressed	wordinitial	3	u		1.06	23.61	ru.mˈɛːn.jən		u	back			
+initial_unstressed_hinten	TRUE	3	Roulette	target	unstressed	wordinitial	2	uː		1.57	0.78	rˈuː.lɛt.ə		u	back			
+initial_unstressed_hinten	TRUE	4	Rubin	target	unstressed	wordinitial	2	uː		1.02	0.81	ruː.bˈiːn		u	back			
+initial_unstressed_hinten	TRUE	5	Ruine	target	unstressed	wordinitial	3	u		2.01	3.61	ru.ˈiː.nə		u	back			
+initial_unstressed_hinten	TRUE	6	rudimentär	target	unstressed	wordinitial	2	uː		0.04	NA	ruː.dˈi.mən.tɐ		u	back			
+initial_unstressed_hinten	TRUE	7	rustikal	target	unstressed	wordinitial	3	ʊ		0.24	NA	rʊs.ti.kˈaːl	Virus	u	back			
+bilabial_vorne_stressed	FALSE	1	Unterbrechung	präfix	stressed	consonantcluster	4	ɛ	b	3.78	9.25	ʔʊn.tɐ.brˈɛç.ʊŋ	brechen	e/ae	front	plosive	labial	voiced
+bilabial_vorne_stressed	FALSE	2	Verbrennung	präfix	stressed	consonantcluster	3	ɛ	b	1.77	3.33	fɛɐ.brˈɛn.ʊŋ	brennen	e/ae	front	plosive	labial	voiced
+bilabial_vorne_stressed	FALSE	3	Fabrik	kein_präfix	stressed	consonantcluster	2	iː	b	21.85	14.83	fa.brˈiːk	Brikett	i	front	plosive	labial	voiced
+bilabial_vorne_stressed	FALSE	4	Express	kein_präfix	stressed	consonantcluster	2	ɛ	p	4.45	0.92	ʔɛks.prˈɛs	Presse	e/ae	front	plosive	labial	unvoiced
+bilabial_vorne_unstressed	FALSE	1	anbrennen	präfix	unstressed	consonantcluster	3	ɛ	b	1.02	0.23	ʔˈan.brɛn.ən	brennen	e/ae	front	plosive	labial	voiced
+bilabial_vorne_unstressed	FALSE	2	Einbrecher	präfix	unstressed	consonantcluster	3	ɛ	b	6.69	2.84	ʔˈaɪn.brɛç.ɐ	brechen	e/ae	front	plosive	labial	voiced
+bilabial_vorne_unstressed	FALSE	3	Glücksbringer	kein_präfix	unstressed	consonantcluster	2	ɪ	b	2.95	0.13	ɡlˈʏks.brɪŋ.ɐ	bringen	i	front	plosive	labial	voiced
+bilabial_vorne_unstressed	FALSE	4	Surfbrett	kein_präfix	unstressed	consonantcluster	2	ɛ	b	0.91	0.06	zˈʊɐsf.brɛt	Brett	e/ae	front	plosive	labial	voiced
+bilabial_hinten_unstressed	FALSE	1	Einbruch	präfix	unstressed	consonantcluster	2	ʊ	b	10.12	7.05	ʔˈaɪn.brʊx	Bruch	u	back	plosive	labial	voiced
+bilabial_hinten_unstressed	FALSE	2	unprofessionell	präfix	unstressed	consonantcluster	4	o	p	2.48	NA	ʔʊn.pro.fɛs.jˈo.nɛl		o	back	plosive	labial	unvoiced
+bilabial_hinten_unstressed	FALSE	3	Kostprobe	kein_präfix	unstressed	consonantcluster	3	oː	p	3.27	0.41	kɔst.prˈoː.bə	Probe	o	back	plosive	labial	unvoiced
+bilabial_hinten_unstressed	FALSE	4	Februar	kein_präfix	unstressed	consonantcluster	3	uː	b	6.81	24.09	fˈeː.bruː.ar		u	back	plosive	labial	voiced
+bilabial_a_stressed	FALSE	1	verbrannt	präfix	stressed	consonantcluster	2	a	b	18.03	8.61	fɛɐ.brˈant	Brand	a	a	plosive	labial	voiced
+bilabial_a_stressed	FALSE	2	gebraten	präfix	stressed	consonantcluster	3	aː	b	2.99	1.72	ɡə.brˈaː.tən	Braten	a	a	plosive	labial	voiced
+bilabial_a_stressed	FALSE	3	Membran	kein_präfix	stressed	consonantcluster	2	a	b	0.35	2.65	mˈɛm.bran		a	a	plosive	labial	voiced
+bilabial_a_unstressed	FALSE	1	Aufprall	präfix	unstressed	consonantcluster	2	a	p	3.19	0.8	ʔˈaʊf.pral	prallen	a	a	plosive	labial	unvoiced
+bilabial_a_unstressed	FALSE	2	Aufpreis	präfix	unstressed	consonantcluster	2	aɪ	p	0.67	0.39	ʔˈaʊf.praɪs		a	a	plosive	labial	unvoiced
+bilabial_a_unstressed	FALSE	3	Kobra	kein_präfix	unstressed	consonantcluster	2	a	b	0.79	0.29	kˈɔ.bra		a	a	plosive	labial	voiced
+bilabial_a_unstressed	FALSE	4	Zebra	kein_präfix	unstressed	consonantcluster	2	a	b	1.65	0.18	tsˈeː.bra		a	a	plosive	labial	voiced
+alveolar_vorne_stressed	FALSE	1	betrügen	präfix	stressed	consonantcluster	3	yː	t	13.58	5.67	bə.trˈyː.ɡən		ue	front	plosive	alveolar	unvoiced
+alveolar_vorne_stressed	FALSE	2	betreten	präfix	stressed	consonantcluster	3	eː	t	16.69	9.54	bə.trˈeː.tən	treten	e/ae	front	plosive	alveolar	unvoiced
+alveolar_vorne_stressed	FALSE	3	Adresse	kein_präfix	stressed	consonantcluster	3	ɛ	d	49.41	14.58	ʔa.drˈɛs.ə	Dressur	e/ae	front	plosive	alveolar	voiced
+alveolar_vorne_stressed	FALSE	4	extrem	kein_präfix	stressed	consonantcluster	2	eː	t	17.72	5.4	ʔɛks.trˈeːm		e/ae	front	plosive	alveolar	unvoiced
+alveolar_vorne_unstressed	FALSE	1	ausdrücken	präfix	unstressed	consonantcluster	3	ʏ	d	10.28	11.64	ʔˈaʊs.drʏk.ən	drücken	ue	front	plosive	alveolar	voiced
+alveolar_vorne_unstressed	FALSE	2	Auftritt	präfix	unstressed	consonantcluster	2	ɪ	t	21.73	10.24	ʔˈaʊf.trɪt		i	front	plosive	alveolar	unvoiced
+alveolar_vorne_unstressed	FALSE	3	Volltreffer	kein_präfix	unstressed	consonantcluster	3	ɛ	t	6.22	1.58	fˈɔl.trɛf.ɐ	Treffer	e/ae	front	plosive	alveolar	unvoiced
+alveolar_vorne_unstressed	FALSE	4	Matrix	kein_präfix	unstressed	consonantcluster	2	ɪ	t	5.16	1.43	mˈaː.trɪks	Trick	i	front	plosive	alveolar	unvoiced
+alveolar_hinten_stressed	FALSE	1	Bedrohung	präfix	stressed	consonantcluster	3	oː	d	20.55	13.84	bə.drˈoː.ʊŋ	Drohung	o	back	plosive	alveolar	voiced
+alveolar_hinten_stressed	FALSE	2	vertrocknen	präfix	stressed	consonantcluster	3	ɔ	t	0.31	0.17	fɛɐ.trˈɔk.nən	Trockner	o	back	plosive	alveolar	unvoiced
+alveolar_hinten_stressed	FALSE	3	Kontrolle	kein_präfix	stressed	consonantcluster	3	ɔ	t	83.31	55.39	kɔn.trˈɔl.ə	Troll	o	back	plosive	alveolar	unvoiced
+alveolar_hinten_stressed	FALSE	4	Zitrone	kein_präfix	stressed	consonantcluster	3	oː	t	4.37	3	tsi.trˈoː.nə		o	back	plosive	alveolar	unvoiced
+alveolar_hinten_unstressed	FALSE	1	Eindruck	präfix	unstressed	consonantcluster	2	ʊ	d	24.92	76.23	ʔˈaɪn.drʊk	Drucker	u	back	plosive	alveolar	voiced
+alveolar_hinten_unstressed	FALSE	2	abtrocknen	präfix	unstressed	consonantcluster	3	ɔ	t	1.26	0.47	ʔˈap.trɔk.nən	Trockner	o	back	plosive	alveolar	unvoiced
+alveolar_hinten_unstressed	FALSE	3	Instrument	kein_präfix	unstressed	consonantcluster	2	u	t	4.61	17.64	ʔɪns.tru.mˈɛnt		u	back	plosive	alveolar	unvoiced
+alveolar_hinten_unstressed	FALSE	4	Zentrum	kein_präfix	unstressed	consonantcluster	2	ʊ	t	12.76	37.81	tsˈɛn.trʊm		u	back	plosive	alveolar	unvoiced
+alveolar_a_stressed	FALSE	1	betrachten	präfix	stressed	consonantcluster	3	a	t	16.06	33.62	bə.trˈax.tən	Tracht	a	a	plosive	alveolar	unvoiced
+alveolar_a_stressed	FALSE	2	Vertrag	präfix	stressed	consonantcluster	2	aː	t	32.99	59.51	fɛɐ.trˈaːk	Trage	a	a	plosive	alveolar	unvoiced
+alveolar_a_stressed	FALSE	3	Quadrat	kein_präfix	stressed	consonantcluster	2	aː	d	1.93	3.18	kva.drˈaːt	Draht	a	a	plosive	alveolar	voiced
+alveolar_a_stressed	FALSE	4	Australien	kein_präfix	stressed	consonantcluster	3	aː	t	11.65	13.87	ʔaʊs.trˈaːl.jən		a	a	plosive	alveolar	unvoiced
+alveolar_a_unstressed	FALSE	1	Beitrag	präfix	unstressed	consonantcluster	2	aː	t	6.34	34.49	bˈaɪ.traːk	Trage	a	a	plosive	alveolar	unvoiced
+alveolar_a_unstressed	FALSE	2	Vortrag	präfix	unstressed	consonantcluster	2	aː	t	6.54	26.52	fˈoːɐ.traːk	Trage	a	a	plosive	alveolar	unvoiced
+alveolar_a_unstressed	FALSE	3	Mantra	kein_präfix	unstressed	consonantcluster	2	a	t	0.71	0.09	mˈan.tra		a	a	plosive	alveolar	unvoiced
+alveolar_a_unstressed	FALSE	4	extra	kein_präfix	unstressed	consonantcluster	2	a	t	33.15	5.17	ʔˈɛks.tra		a	a	plosive	alveolar	unvoiced
+velar_vorne_stressed	FALSE	1	bekräftigen	präfix	stressed	consonantcluster	NA	ɛ	k	0.59	3.15	bə.krˈɛf.tɪ.ɡən	kräftig	e/ae	front	plosive	velar	unvoiced
+velar_vorne_stressed	FALSE	2	vergrößern	präfix	stressed	consonantcluster	3	øː	g	4.96	6.01	fɛɐ.ɡrˈøː.sɐn	Größe	oe	front	plosive	velar	voiced
+velar_vorne_stressed	FALSE	3	diskret	kein_präfix	stressed	consonantcluster	2	eː	k	3.7	2.89	dɪs.krˈeːt		e/ae	front	plosive	velar	unvoiced
+velar_vorne_stressed	FALSE	4	Manuskript	kein_präfix	stressed	consonantcluster	3	ɪ	k	2.68	7.32	man.us.krˈɪpt	Krippe	i	front	plosive	velar	unvoiced
+velar_vorne_unstressed	FALSE	1	umkrempeln	präfix	unstressed	consonantcluster	3	ɛ	k	0.47	0.16	ʔˈʊm.krɛm.pəln		e/ae	front	plosive	velar	unvoiced
+velar_vorne_unstressed	FALSE	2	unkritisch	präfix	unstressed	consonantcluster	3	iː	k	0.04	0.72	ʔˈʊn.kriː.tɪʃ	Kritik/Kritiker	i	front	plosive	velar	unvoiced
+velar_vorne_unstressed	FALSE	3	Schildkröte	kein_präfix	unstressed	consonantcluster	3	øː	k	13.19	1.28	ʃˈɪlt.krøː.tə	Kröte	oe	front	plosive	velar	unvoiced
+velar_vorne_unstressed	FALSE	4	Weltkrieg	kein_präfix	unstressed	consonantcluster	2	iː	k	9.09	30.89	vˈɛlt.kriːk	Krieger	i	front	plosive	velar	unvoiced
+velar_hinten_stressed	FALSE	1	bekreuzigen	präfix	stressed	consonantcluster	4	ɔʏ	k	0.12	0.09	bə.krˈɔʏ.tsɪ.ɡən		o	back	plosive	velar	unvoiced
+velar_hinten_stressed	FALSE	3	bankrott	kein_präfix	stressed	consonantcluster	2	ɔ	k	3.35	1.86	baŋ.krˈɔt		o	back	plosive	velar	unvoiced
+velar_hinten_unstressed	FALSE	3	Mikrowelle	kein_präfix	unstressed	consonantcluster	4	o	k	3.74	0.1	mˈiː.kro.vɛl.ə		o	back	plosive	velar	unvoiced
+velar_hinten_unstressed	FALSE	4	Mikrofon	kein_präfix	unstressed	consonantcluster	3	o	k	4.33	1	mi.kro.fˈoːn		o	back	plosive	velar	unvoiced
+velar_a_stressed	FALSE	1	verkraften	präfix	stressed	consonantcluster	3	a	k	3.7	0.87	fɛɐ.krˈaf.tən	Kraft	a	a	plosive	velar	unvoiced
+velar_a_stressed	FALSE	2	zerkratzen	präfix	stressed	consonantcluster	3	a	k	0.67	0.11	tsˈɛɐ.kra.tsən	Kratzer	a	a	plosive	velar	unvoiced
+f_vorne_stressed	FALSE	1	verfrüht	präfix	stressed	consonantcluster	3	yː	f	0.98	1.99	fɛɐ.frˈyːt		ue	front	fricative	labial	unvoiced
+f_vorne_stressed	FALSE	2	zufrieden	präfix	stressed	consonantcluster	3	iː	f	51.14	33.53	tsu.frˈiː.dən	Frieden	i	front	fricative	labial	unvoiced
+f_vorne_stressed	FALSE	3	Gefrierfach	kein_präfix	stressed	consonantcluster	3	iː	f	0.55	0.02	ɡə.frˈiːɐ.fax		i	front	fricative	labial	unvoiced
+f_vorne_unstressed	FALSE	1	auffressen	präfix	unstressed	consonantcluster	3	ɛ	f	1.97	0.43	ʔˈaʊf.frɛs.ən		e/ae	front	fricative	labial	unvoiced
+f_vorne_unstressed	FALSE	2	auffrischen	präfix	unstressed	consonantcluster	3	ɪ	f	1.3	0.16	ʔˈaʊf.frɪʃ.ən	frisch	i	front	fricative	labial	unvoiced
+f_vorne_unstressed	FALSE	3	Afrika	kein_präfix	unstressed	consonantcluster	3	i	f	12.4	24.35	ʔˈaː.fri.ka	Frikadelle	i	front	fricative	labial	unvoiced
+f_vorne_unstressed	FALSE	4	kurzfristig	kein_präfix	unstressed	consonantcluster	3	ɪ	f	4.13	3.96	kˈʊɐts.frɪs.tɪç	Frist	i	front	fricative	labial	unvoiced
+f_hinten_stressed	FALSE	1	befreundet	präfix	stressed	consonantcluster	3	ɔʏ	f	15.39	5.4	bə.frˈɔʏn.dət	Freund	o	back	fricative	labial	unvoiced
+f_hinten_unstressed	FALSE	1	unfreundlich	präfix	unstressed	consonantcluster	3	ɔʏ	f	2.09	2.31	ʔˈʊn.frɔʏnt.lɪç	Freund	o	back	fricative	labial	unvoiced
+f_hinten_unstressed	FALSE	2	Vorfreude	präfix	unstressed	consonantcluster	3	ɔʏ	f	0.67	1.03	fˈoːɐ.frɔʏ.də		o	back	fricative	labial	unvoiced
+f_hinten_unstressed	FALSE	3	Konfrontation	kein_präfix	unstressed	consonantcluster	4	ɔ	f	2.95	5.53	kɔn.frɔn.ta.tsjˈoːn	Front	o	back	fricative	labial	unvoiced
+f_hinten_unstressed	FALSE	4	Baumfrosch	kein_präfix	unstressed	consonantcluster	2	ɔ	f	0.35	NA	bˈaʊm.frɔʃ	Frosch	o	back	fricative	labial	unvoiced
+f_a_stressed	FALSE	1	Befragung	präfix	stressed	consonantcluster	3	aː	f	5.39	3.32	bə.frˈaː.ɡʊŋ	Frage	a	a	fricative	labial	unvoiced
+f_a_stressed	FALSE	3	Diaphragma	kein_präfix	stressed	consonantcluster	4	aː	f	0.51	0.05	di.a.frˈaː.ɡma	Fragment	a	a	fricative	labial	unvoiced
+f_a_unstressed	FALSE	1	Umfrage	präfix	unstressed	consonantcluster	3	aː	f	1.93	1.83	ʔˈʊm.fraː.ɡə	Frage	a	a	fricative	labial	unvoiced
+f_a_unstressed	FALSE	3	Luftfracht	kein_präfix	unstressed	consonantcluster	2	a	f	0.16	0.07	lˈʊft.fraxt	Fracht	a	a	fricative	labial	unvoiced
+f_a_unstressed	FALSE	4	Schädelfraktur	kein_präfix	unstressed	consonantcluster	4	a	f	0.43	NA	ʃˈɛː.dəl.frak.tuːɐɐ		a	a	fricative	labial	unvoiced
+sch_vorne_stressed	FALSE	1	erschrecken	präfix	stressed	consonantcluster	3	ɛ	ʃ	12.13	3.24	ʔɛɐ.ʃrˈɛk.ən	Schreck	e/ae	front	fricative	alveolar	unvoiced
+sch_vorne_stressed	FALSE	2	Beschränkung	präfix	stressed	consonantcluster	3	ɛ	ʃ	0.2	15.93	bə.ʃrˈɛŋ.kʊŋ		e/ae	front	fricative	alveolar	unvoiced
+sch_vorne_unstressed	FALSE	1	Unterschrift	präfix	unstressed	consonantcluster	3	ɪ	ʃ	11.97	11.76	ʔˈʊn.tɐ.ʃrɪft	Schrift	i	front	fricative	alveolar	unvoiced
+sch_vorne_unstressed	FALSE	2	Einschränkung	präfix	unstressed	consonantcluster	3	ɛ	ʃ	0.67	16.08	ʔˈaɪn.ʃrɛŋ.kʊŋ		e/ae	front	fricative	alveolar	unvoiced
+sch_vorne_unstressed	FALSE	3	Fortschritt	kein_präfix	unstressed	consonantcluster	2	ɪ	ʃ	6.58	37.22	fˈɔɐt.ʃrɪt	Schritt	i	front	fricative	alveolar	unvoiced
+sch_vorne_unstressed	FALSE	4	Heuschrecke	kein_präfix	unstressed	consonantcluster	3	ɛ	ʃ	0.2	0.47	hɔʏ.ʃrˈɛk.ə	Schreck	e/ae	front	fricative	alveolar	unvoiced
+sch_a_stressed	FALSE	1	zerschrammt	präfix	stressed	consonantcluster	3	a	ʃ	0.04	0.02	tsɛɐ.ʃrˈa.mt	Schramme	a	a	fricative	alveolar	unvoiced
+sch_a_stressed	FALSE	2	unterschreiben	präfix	stressed	consonantcluster	4	aɪ	ʃ	28.78	4.39	ʔʊn.tɐ.ʃrˈaɪ.bən	schreiben	a	a	fricative	alveolar	unvoiced
+sch_a_stressed	FALSE	3	Geschrei	kein_präfix	stressed	consonantcluster	2	aɪ	ʃ	7.64	10.15	ɡə.ʃrˈaɪ	Schrei	a	a	fricative	alveolar	unvoiced
+sch_a_stressed	FALSE	4	Beschreibung	kein_präfix	stressed	consonantcluster	3	aɪ	ʃ	7.87	19.81	bə.ʃrˈaɪ.bʊŋ	schreiben	a	a	fricative	alveolar	unvoiced
+sch_a_unstressed	FALSE	1	abschreiben	präfix	unstressed	consonantcluster	3	aɪ	ʃ	1.77	0.53	ʔˈap.ʃraɪ.bən	schreiben	a	a	fricative	alveolar	unvoiced
+sch_a_unstressed	FALSE	2	anschreien	präfix	unstressed	consonantcluster	3	aɪ	ʃ	3.03	0.25	ʔˈan.ʃraɪ.ən	Schrei	a	a	fricative	alveolar	unvoiced
+sch_a_unstressed	FALSE	3	Kühlschrank	kein_präfix	unstressed	consonantcluster	2	a	ʃ	18.47	2.67	kˈyːl.ʃraŋk	Schranke	a	a	fricative	alveolar	unvoiced
+sch_a_unstressed	FALSE	4	Hubschrauber	kein_präfix	unstressed	consonantcluster	3	aʊ	ʃ	28.86	2.38	hˈuːp.ʃraʊ.bɐ	Schraube	a	a	fricative	alveolar	unvoiced
+bilabial_vorne_stressed	TRUE	1	Brett	target	stressed	consonantcluster	1	ɛ	b	15.55	6.65	brˈɛt	Surfbrett	e/ae	front	plosive	labial	voiced
+bilabial_vorne_stressed	TRUE	2	brechen	target	stressed	consonantcluster	2	ɛ	b	44.65	10.95	brˈɛç.ən	Einbrecher. Unterbrechung	e/ae	front	plosive	labial	voiced
+bilabial_vorne_stressed	TRUE	3	bringen	target	stressed	consonantcluster	2	ɪ	b	409.74	149.98	brˈɪŋ.ən	Glücksbringer	i	front	plosive	labial	voiced
+bilabial_vorne_stressed	TRUE	4	Presse	target	stressed	consonantcluster	2	ɛ	p	25.67	63.81	prˈɛs.ə	Express	e/ae	front	plosive	labial	unvoiced
+bilabial_vorne_stressed	TRUE	5	brennen	target	stressed	consonantcluster	2	ɛ	b	15.35	6.47	brˈɛn.ən	Verbrennung. anbrennen	e/ae	front	plosive	labial	voiced
+bilabial_vorne_stressed	TRUE	6	Brise	target	stressed	consonantcluster	2	iː	b	3.27	0.89	brˈiː.zə		i	front	plosive	labial	voiced
+bilabial_vorne_unstressed	TRUE	1	Prinzip	target	unstressed	consonantcluster	3	ɪ	p	10.47	59.92	prɪn.tsˈiːp		i	front	plosive	labial	unvoiced
+bilabial_vorne_unstressed	TRUE	2	Brigade	target	unstressed	consonantcluster	3	i	b	2.44	4.9	bri.ɡˈaː.də		i	front	plosive	labial	voiced
+bilabial_vorne_unstressed	TRUE	3	Brikett	target	unstressed	consonantcluster	2	i	b	0.2	0.2	bri.kˈɛt	Fabrik	i	front	plosive	labial	voiced
+bilabial_vorne_unstressed	TRUE	4	Präsentation	target	unstressed	consonantcluster	4	ɛ	p	3.9	1.41	prɛ.zɛn.ta.tsjˈoːn		e/ae	front	plosive	labial	unvoiced
+bilabial_vorne_unstressed	TRUE	5	Präsident	target	unstressed	consonantcluster	3	ɛ	p	106.54	129.22	prɛ.zi.dˈɛnt		e/ae	front	plosive	labial	unvoiced
+bilabial_vorne_unstressed	TRUE	6	Prinzessin	target	unstressed	consonantcluster	3	ɪ	p	65.51	21.03	prɪn.tsˈɛs.ɪn		i	front	plosive	labial	unvoiced
+alveolar_vorne_stressed	TRUE	1	treten	target	stressed	consonantcluster	2	eː	t	48.82	39.69	trˈeː.tən	betreten	e/ae	front	plosive	alveolar	unvoiced
+alveolar_vorne_stressed	TRUE	2	drücken	target	stressed	consonantcluster	2	ʏ	d	30.2	8.61	drˈʏk.ən	ausdrücken	ue	front	plosive	alveolar	voiced
+alveolar_vorne_stressed	TRUE	3	Treffer	target	stressed	consonantcluster	2	ɛ	t	16.1	3.16	trˈɛf.ɐ	Volltreffer	e/ae	front	plosive	alveolar	unvoiced
+alveolar_vorne_stressed	TRUE	4	Trick	target	stressed	consonantcluster	1	ɪ	t	32.48	4.61	trˈɪk	Matrix	i	front	plosive	alveolar	unvoiced
+alveolar_vorne_stressed	TRUE	5	Dreck	target	stressed	consonantcluster	1	ɛ	d	35.75	11.12	drˈɛk		e/ae	front	plosive	alveolar	voiced
+alveolar_vorne_stressed	TRUE	6	Treppe	target	stressed	consonantcluster	2	ɛ	t	25	30.68	trˈɛp.ə		e/ae	front	plosive	alveolar	unvoiced
+alveolar_vorne_unstressed	TRUE	1	Tresor	target	unstressed	consonantcluster	2	e	t	5.87	0.55	tre.zˈoːɐ		e/ae	front	plosive	alveolar	unvoiced
+alveolar_vorne_unstressed	TRUE	2	Triumph	target	unstressed	consonantcluster	2	i	t	3.86	9.95	tri.ˈʊmf		i	front	plosive	alveolar	unvoiced
+alveolar_vorne_unstressed	TRUE	3	Tribüne	target	unstressed	consonantcluster	3	i	t	1.22	3.92	tri.bˈyː.nə		i	front	plosive	alveolar	unvoiced
+alveolar_vorne_unstressed	TRUE	4	Trikot	target	unstressed	consonantcluster	2	i	t	1.81	0.84	trˈi.koː		i	front	plosive	alveolar	unvoiced
+alveolar_vorne_unstressed	TRUE	5	Dressur	target	unstressed	consonantcluster	2	ɛ	d	NA	1.19	drɛ.sˈur	Adresse	e/ae	front	plosive	alveolar	voiced
+alveolar_vorne_unstressed	TRUE	6	Tribut	target	unstressed	consonantcluster	2	ɪ	t	3.23	2.12	trɪ.bˈut		i	front	plosive	alveolar	unvoiced
+velar_vorne_stressed	TRUE	1	Krieger	target	stressed	consonantcluster	1	iː	k	20.83	8.66	krˈiː.ɡɐ	Weltkrieg	i	front	plosive	velar	unvoiced
+velar_vorne_stressed	TRUE	2	Krippe	target	stressed	consonantcluster	2	ɪ	k	1.34	1.63	krˈɪp.ə	Manuskript	i	front	plosive	velar	unvoiced
+velar_vorne_stressed	TRUE	3	Kröte	target	stressed	consonantcluster	2	øː	k	2.17	1.16	krˈøː.tə	Schildkröte	oe	front	plosive	velar	unvoiced
+velar_vorne_stressed	TRUE	4	Größe	target	stressed	consonantcluster	2	øː	g	31.42	58.28	ɡrˈøː.sə	vergrößern	oe	front	plosive	velar	voiced
+velar_vorne_stressed	TRUE	5	Kritiker	target	stressed	consonantcluster	3	iː	k	4.33	12.25	krˈiː.tɪk.ɐ	unkritisch	i	front	plosive	velar	unvoiced
+velar_vorne_stressed	TRUE	6	kräftig	target	stressed	consonantcluster	2	ɛ	k	7.99	18.14	krˈɛf.tɪç	bekräftigen	e/ae	front	plosive	velar	unvoiced
+velar_vorne_unstressed	TRUE	1	Kreatur	target	unstressed	consonantcluster	3	e	k	11.85	4.3	kre.aː.ˈtuːɐɐ		e/ae	front	plosive	velar	unvoiced
+velar_vorne_unstressed	TRUE	2	Kritik	target	unstressed	consonantcluster	2	i	k	6.54	69.27	kri.tˈiːk	unkritisch	i	front	plosive	velar	unvoiced
+velar_vorne_unstressed	TRUE	3	Kristall	target	unstressed	consonantcluster	2	ɪ	k	6.58	3.36	krˈɪs.tal		i	front	plosive	velar	unvoiced
+velar_vorne_unstressed	TRUE	4	kriminell	target	unstressed	consonantcluster	3	i	k	2.8	NA	kri.mi.nˈɛl		i	front	plosive	velar	unvoiced
+velar_vorne_unstressed	TRUE	5	Grimasse	target	unstressed	consonantcluster	3	i	g	0.71	1.66	ɡri.mˈa.sə		i	front	plosive	velar	voiced
+velar_vorne_unstressed	TRUE	6	Kredit	target	unstressed	consonantcluster	4	e	k	8.66	13.46	kre.dˈiːt		e/ae	front	plosive	velar	unvoiced
+bilabial_hinten_stressed	TRUE	1	Brot	target	stressed	consonantcluster	1	oː	b	24.45	37.25	brˈoːt		o	back	plosive	labial	voiced
+bilabial_hinten_stressed	TRUE	2	Brunnen	target	stressed	consonantcluster	2	ʊ	b	9.76	9.35	brˈʊn.ən		u	back	plosive	labial	voiced
+bilabial_hinten_stressed	TRUE	3	Brust	target	stressed	consonantcluster	1	ʊ	b	28.82	49.77	brˈʊst		u	back	plosive	labial	voiced
+bilabial_hinten_stressed	TRUE	4	Profi	target	stressed	consonantcluster	2	oː	p	13.9	0.49	prˈoː.fi		o	back	plosive	labial	unvoiced
+bilabial_hinten_stressed	TRUE	5	Probe	target	stressed	consonantcluster	1	oː	p	18.9	12.64	prˈoː.bə	Kostprobe	o	back	plosive	labial	unvoiced
+bilabial_hinten_stressed	TRUE	6	Bruch	target	stressed	consonantcluster	3	ʊ	b	4.8	13.86	brˈʊx	Einbruch	u	back	plosive	labial	voiced
+bilabial_hinten_unstressed	TRUE	1	Problem	target	unstressed	consonantcluster	2	o	p	378.52	88.23	pro.blˈeːm		o	back	plosive	labial	unvoiced
+bilabial_hinten_unstressed	TRUE	2	Professor	target	unstressed	consonantcluster	3	o	p	61.77	131.84	pro.fˈɛs.oːɐ		o	back	plosive	labial	unvoiced
+bilabial_hinten_unstressed	TRUE	3	Profit	target	unstressed	consonantcluster	2	o	p	4.76	2.67	pro.fˈiːt		o	back	plosive	labial	unvoiced
+bilabial_hinten_unstressed	TRUE	4	Prominente	target	unstressed	consonantcluster	4	o	p	1.81	0.32	pro.mi.nˈɛn.tə		o	back	plosive	labial	unvoiced
+bilabial_hinten_unstressed	TRUE	5	Propeller	target	unstressed	consonantcluster	3	oː	p	1.38	0.79	prˈoː.pɛl.ɐ		o	back	plosive	labial	unvoiced
+bilabial_hinten_unstressed	TRUE	6	Protein	target	unstressed	consonantcluster	3	o	p	2.83	0.92	pro.te.ˈiːn		o	back	plosive	labial	unvoiced
+alveolar_hinten_stressed	TRUE	1	Drohung	target	stressed	consonantcluster	2	oː	d	6.14	11.36	drˈoː.ʊŋ	Bedrohung	o	back	plosive	alveolar	voiced
+alveolar_hinten_stressed	TRUE	2	Drucker	target	stressed	consonantcluster	2	ʊ	d	1.57	5.6	drˈʊk.ɐ	Eindruck	u	back	plosive	alveolar	voiced
+alveolar_hinten_stressed	TRUE	3	Trockner	target	stressed	consonantcluster	2	ɔ	t	2.4	0.46	trˈɔk.nɐ	vertrocknen. abtrocknen	o	back	plosive	alveolar	unvoiced
+alveolar_hinten_stressed	TRUE	4	Trage	target	stressed	consonantcluster	2	aː	t	34.57	9.33	trˈaː.ɡə	Vertrag. Beitrag. Vortrag	a	a	plosive	alveolar	unvoiced
+alveolar_hinten_stressed	TRUE	5	Tracht	target	stressed	consonantcluster	2	a	t	2.56	5.45	trˈaxt	betrachten	a	a	plosive	alveolar	unvoiced
+alveolar_hinten_stressed	TRUE	6	Troll	target	stressed	consonantcluster	1	ɔ	t	1.34	1.13	trˈɔl	Kontrolle	o	back	plosive	alveolar	unvoiced
+alveolar_hinten_unstressed	TRUE	1	Druide	target	unstressed	consonantcluster	3	u	d	0.35	0.03	dru.ˈi.də		u	back	plosive	alveolar	voiced
+alveolar_hinten_unstressed	TRUE	2	Trophäe	target	unstressed	consonantcluster	3	oː	t	2.56	0.58	trˈoː.fɛː.ə		o	back	plosive	alveolar	unvoiced
+alveolar_hinten_unstressed	TRUE	3	Trompete	target	unstressed	consonantcluster	3	ɔ	t	2.24	2.69	trɔm.pˈeː.tə		o	back	plosive	alveolar	unvoiced
+alveolar_hinten_unstressed	TRUE	4	Trojaner	target	unstressed	consonantcluster	3	oː	t	1.77	0.22	trˈoː.jaː.nɐ		o	back	plosive	alveolar	unvoiced
+alveolar_hinten_unstressed	TRUE	5	Trompeter	target	unstressed	consonantcluster	3	ɔ	t	0.24	1.62	trɔm.pˈeː.tɐ		o	back	plosive	alveolar	unvoiced
+velar_hinten_stressed	TRUE	1	Groschen	target	stressed	consonantcluster	2	ɔ	g	1.73	5.96	ɡrˈɔʃ.ən		o	back	plosive	velar	voiced
+velar_hinten_stressed	TRUE	2	Grube	target	stressed	consonantcluster	2	uː	g	4.92	7.89	ɡrˈuː.bə		u	back	plosive	velar	voiced
+velar_hinten_stressed	TRUE	3	Gruß	target	stressed	consonantcluster	1	uː	g	4.76	17.58	ɡrˈuːs		u	back	plosive	velar	voiced
+velar_hinten_stressed	TRUE	4	Gruppe	target	stressed	consonantcluster	2	ʊ	g	52.48	91	ɡrˈʊp.ə		u	back	plosive	velar	voiced
+velar_hinten_stressed	TRUE	5	Krone	target	stressed	consonantcluster	2	oː	k	9.06	18.88	krˈoː.nə		o	back	plosive	velar	unvoiced
+velar_hinten_stressed	TRUE	6	Krug	target	stressed	consonantcluster	1	uː	k	3.82	3.53	krˈuːk		u	back	plosive	velar	unvoiced
+velar_hinten_unstressed	TRUE	1	Krokodil	target	unstressed	consonantcluster	3	o	k	2.4	1.2	kro.ko.dˈiːl		o	back	plosive	velar	unvoiced
+velar_hinten_unstressed	TRUE	2	Kroatien	target	unstressed	consonantcluster	4	oa	k	NA	2.9	kroaːtsjən		o	back	plosive	velar	unvoiced
+velar_hinten_unstressed	TRUE	3	Kroketten	target	unstressed	consonantcluster	3	o	k	0.43	NA	kro.kˈɛt.ən		o	back	plosive	velar	unvoiced
+velar_hinten_unstressed	TRUE	4	Krokant	target	unstressed	consonantcluster	2	o	k	NA	0.07	kro.kˈant		o	back	plosive	velar	unvoiced
+velar_hinten_unstressed	TRUE	5	Chronologie	target	unstressed	consonantcluster	4	o	k	0.2	1.94	kro.no.lo.ɡˈiː		o	back	plosive	velar	unvoiced
+velar_hinten_unstressed	TRUE	6	Chromosom	target	unstressed	consonantcluster	3	o	k	0.12	1.15	kro.mo.zˈoːm		o	back	plosive	velar	unvoiced
+bilabial_a_stressed	TRUE	1	Brand	target	stressed	consonantcluster	1	a	b	10.95	16.43	brˈant	verbrannt	a	a	plosive	labial	voiced
+bilabial_a_stressed	TRUE	2	Praxis	target	stressed	consonantcluster	2	a	p	5.95	47.87	prˈak.sɪs		a	a	plosive	labial	unvoiced
+bilabial_a_stressed	TRUE	3	prallen	target	stressed	consonantcluster	2	aː	p	1.42	NA	prˈaː.lən	Aufprall	a	a	plosive	labial	unvoiced
+bilabial_a_stressed	TRUE	4	Braten	target	stressed	consonantcluster	2	aː	b	6.02	4.8	brˈaː.tən	gebraten	a	a	plosive	labial	voiced
+bilabial_a_unstressed	TRUE	1	Brasilien	target	unstressed	consonantcluster	3	a	b	4.92	12.16	bra.zˈiːl.jən		a	a	plosive	labial	voiced
+bilabial_a_unstressed	TRUE	2	Praline	target	unstressed	consonantcluster	3	a	p	0.71	0.26	pral.ˈiː.nə		a	a	plosive	labial	unvoiced
+bilabial_a_unstressed	TRUE	3	Praktikant	target	unstressed	consonantcluster	3	a	p	0.83	0.19	prˈak.ti.kant		a	a	plosive	labial	unvoiced
+bilabial_a_unstressed	TRUE	4	praktikabel	target	unstressed	consonantcluster	3	a	p	0.12	NA	prak.ti.kˈaː.bəl		a	a	plosive	labial	unvoiced
+alveolar_a_stressed	TRUE	1	Drache	target	stressed	consonantcluster	2	a	d	10.43	1.48	drˈax.ə		a	a	plosive	alveolar	voiced
+alveolar_a_stressed	TRUE	2	Draht	target	stressed	consonantcluster	1	aː	d	5.95	7.7	drˈaːt	Quadrat	a	a	plosive	alveolar	voiced
+alveolar_a_stressed	TRUE	3	Drama	target	stressed	consonantcluster	2	aː	d	22.17	11.76	drˈaː.ma		a	a	plosive	alveolar	voiced
+alveolar_a_stressed	TRUE	4	Traktor	target	stressed	consonantcluster	2	a	t	1.97	0.74	trˈak.toːɐ		a	a	plosive	alveolar	unvoiced
+alveolar_a_unstressed	TRUE	1	Tragödie	target	unstressed	consonantcluster	4	a	t	13.5	10.5	tra.ɡˈøː.djə		a	a	plosive	alveolar	unvoiced
+alveolar_a_unstressed	TRUE	2	Transporter	target	unstressed	consonantcluster	3	a	t	6.1	1.27	trans.pˈɔɐ.tɐ		a	a	plosive	alveolar	unvoiced
+alveolar_a_unstressed	TRUE	3	Transfusion	target	unstressed	consonantcluster	3	aː	t	1.3	0.11	trˈaːns.fu.zjoːn		a	a	plosive	alveolar	unvoiced
+alveolar_a_unstressed	TRUE	4	Dramatik	target	unstressed	consonantcluster	3	a	d	1.38	1.55	dram.ˈaː.tɪk		a	a	plosive	alveolar	voiced
+velar_a_stressed	TRUE	1	Kraft	target	stressed	consonantcluster	1	a	k	100.56	156.07	krˈaft	verkraften	a	a	plosive	velar	unvoiced
+velar_a_stressed	TRUE	2	Kratzer	target	stressed	consonantcluster	1	a	k	11.18	0.83	krˈat.sɐ	zerkratzen	a	a	plosive	velar	unvoiced
+velar_a_stressed	TRUE	3	Grad	target	stressed	consonantcluster	1	aː	g	51.18	31.13	ɡrˈaːt		a	a	plosive	velar	voiced
+velar_a_stressed	TRUE	4	Krabbe	target	stressed	consonantcluster	2	a	k	1.77	0.77	krˈa.bə		a	a	plosive	velar	unvoiced
+velar_a_unstressed	TRUE	1	Granate	target	unstressed	consonantcluster	3	a	g	5.28	2.39	ɡran.ˈaː.tə		a	a	plosive	velar	voiced
+velar_a_unstressed	TRUE	2	Gratulation	target	unstressed	consonantcluster	4	a	g	4.29	0.7	ɡrat.u.la.tsjˈoːn		a	a	plosive	velar	voiced
+velar_a_unstressed	TRUE	3	Graffiti	target	unstressed	consonantcluster	3	aː	g	1.89	0.39	ɡrˈaː.fi.ti		a	a	plosive	velar	voiced
+velar_a_unstressed	TRUE	4	Krawatte	target	unstressed	consonantcluster	3	a	k	10.75	4.85	kra.vˈa.tə		a	a	plosive	velar	unvoiced
+f_vorne_stressed	TRUE	1	Früchte	target	stressed	consonantcluster	4	ʏ	f	6.14	18.25	frˈʏç.tə		ue	front	fricative	labial	unvoiced
+f_vorne_stressed	TRUE	2	Frieden	target	stressed	consonantcluster	2	iː	f	63.9	99.7	frˈiː.dən	zufrieden	i	front	fricative	labial	unvoiced
+f_vorne_stressed	TRUE	3	frisch	target	stressed	consonantcluster	2	ɪ	f	27.25	21.26	frˈɪʃ	auffrischen	i	front	fricative	labial	unvoiced
+f_vorne_stressed	TRUE	4	Frist	target	stressed	consonantcluster	1	ɪ	f	2.64	20.36	frˈɪst	kurzfristig	i	front	fricative	labial	unvoiced
+f_vorne_stressed	TRUE	5	Fremder	target	stressed	consonantcluster	2	ɛ	f	11.14	12.79	frˈɛm.dɐ		e/ae	front	fricative	labial	unvoiced
+f_vorne_stressed	TRUE	6	Frühstück	target	stressed	consonantcluster	2	yː	f	40	17.94	frˈyː.ʃtʏk		ue	front	fricative	labial	unvoiced
+f_vorne_unstressed	TRUE	1	Frequenz	target	unstressed	consonantcluster	2	e	f	8.9	3.26	fre.kvˈɛnts		e/ae	front	fricative	labial	unvoiced
+f_vorne_unstressed	TRUE	2	Frisur	target	unstressed	consonantcluster	2	i	f	12.4	2.68	fri.zˈuːɐ		i	front	fricative	labial	unvoiced
+f_vorne_unstressed	TRUE	3	Friseur	target	unstressed	consonantcluster	2	ɪ	f	7.01	3.73	frɪ.zˈøːɐ		i	front	fricative	labial	unvoiced
+f_vorne_unstressed	TRUE	4	Frikadelle	target	unstressed	consonantcluster	4	i	f	0.08	0.02	fri.ka.dˈɛl.ə	Afrika	i	front	fricative	labial	unvoiced
+f_vorne_unstressed	TRUE	5	Friteuse	target	unstressed	consonantcluster	4	iː	f	0.12	0.02	friː.tˈɛː.ʔu.zə		i	front	fricative	labial	unvoiced
+f_hinten_stressed	TRUE	1	Frosch	target	stressed	consonantcluster	1	ɔ	f	9.53	2.69	frˈɔʃ	Baumfrosch	o	back	fricative	labial	unvoiced
+f_hinten_stressed	TRUE	2	Frost	target	stressed	consonantcluster	1	ɔ	f	3.86	6.76	frˈɔst		o	back	fricative	labial	unvoiced
+f_hinten_stressed	TRUE	3	Frucht	target	stressed	consonantcluster	1	ʊ	f	3.82	12.53	frˈʊxt		u	back	fricative	labial	unvoiced
+f_hinten_stressed	TRUE	4	Frust	target	stressed	consonantcluster	1	ʊ	f	1.18	0.46	frˈʊst		u	back	fricative	labial	unvoiced
+f_hinten_stressed	TRUE	5	Front	target	stressed	consonantcluster	1	ɔ	f	10.87	51.14	frˈɔnt	Konfrontation	o	back	fricative	labial	unvoiced
+f_hinten_stressed	TRUE	6	Freund	target	stressed	consonantcluster	2	ɔʏ	f	428.76	79.54	frˈɔʏnt	befreundet. unfreundlich	o	back	fricative	labial	unvoiced
+f_hinten_unstressed	TRUE	1	Fructose	target	unstressed	consonantcluster	3	uː	f	0.08	0.05	frˈuːk.toː.zə		u	back	fricative	labial	unvoiced
+f_a_stressed	TRUE	1	Fracht	target	stressed	consonantcluster	1	a	f	4.8	2.31	frˈaxt	Luftfracht	a	a	fricative	labial	unvoiced
+f_a_stressed	TRUE	2	Franken	target	stressed	consonantcluster	2	a	f	1.5	18.66	frˈaŋ.kən		a	a	fricative	labial	unvoiced
+f_a_stressed	TRUE	3	Fratze	target	stressed	consonantcluster	2	a	f	1.3	1.07	frˈat.sə		a	a	fricative	labial	unvoiced
+f_a_stressed	TRUE	4	Frage	target	stressed	consonantcluster	2	aː	f	294.81	362.09	frˈaː.ɡə	Befragung. Umfrage	a	a	fricative	labial	unvoiced
+f_a_unstressed	TRUE	1	Franzose	target	unstressed	consonantcluster	3	a	f	5.32	6.01	fran.tsˈoː.zə		a	a	fricative	labial	unvoiced
+f_a_unstressed	TRUE	2	Französisch	target	unstressed	consonantcluster	3	a	f	17.44	8.37	fran.tsˈøː.zɪʃ		a	a	fricative	labial	unvoiced
+f_a_unstressed	TRUE	3	Fragment	target	unstressed	consonantcluster	2	aː	f	0.51	2.76	frˈaː.kmɛnt	Diaphragma	a	a	fricative	labial	unvoiced
+f_a_unstressed	TRUE	4	Fraktion	target	unstressed	consonantcluster	4	a	f	0.63	15.37	frak.tsjˈoːn		a	a	fricative	labial	unvoiced
+sch_vorne_stressed	TRUE	1	Schreck	target	stressed	consonantcluster	1	ɛ	ʃ	4.49	9.11	ʃrˈɛk	erschrecken. Heuschrecke	e/ae	front	fricative	alveolar	unvoiced
+sch_vorne_stressed	TRUE	2	Schrift	target	stressed	consonantcluster	1	ɪ	ʃ	7.13	47	ʃrˈɪft	Unterschrift	i	front	fricative	alveolar	unvoiced
+sch_vorne_stressed	TRUE	3	Schritt	target	stressed	consonantcluster	1	ɪ	ʃ	70.28	85.56	ʃrˈɪt	Fortschritt	i	front	fricative	alveolar	unvoiced
+sch_vorne_stressed	TRUE	4	schräg	target	stressed	consonantcluster	2	ɛː	ʃ	5	12.38	ʃrˈɛːk		e/ae	front	fricative	alveolar	unvoiced
+sch_hinten_stressed	TRUE	1	Schrott	target	stressed	consonantcluster	1	ɔ	ʃ	9.96	1.59	ʃrˈɔt		o	back	fricative	alveolar	unvoiced
+sch_hinten_stressed	TRUE	2	Schrotflinte	target	stressed	consonantcluster	2	ɔ	ʃ	1.69	0.11	ʃrˈɔt.flɪn.tə		o	back	fricative	alveolar	unvoiced
+sch_a_stressed	TRUE	1	Schramme	target	stressed	consonantcluster	2	a	ʃ	1.02	0.47	ʃrˈam.ə	zerschrammt	a	a	fricative	alveolar	unvoiced
+sch_a_stressed	TRUE	2	Schranke	target	stressed	consonantcluster	2	a	ʃ	0.35	4.95	ʃrˈaŋ.kə	Kühlschrank	a	a	fricative	alveolar	unvoiced
+sch_a_stressed	TRUE	3	schreiben	target	stressed	consonantcluster	2	aɪ	ʃ	103.27	49.71	ʃrˈaɪ.bən	unterschreiben. Beschreibung. abschreiben	a	a	fricative	alveolar	unvoiced
+sch_a_stressed	TRUE	4	Schrei	target	stressed	consonantcluster	1	aɪ	ʃ	20.24	12.72	ʃrˈaɪ	Geschrei. anschreien	a	a	fricative	alveolar	unvoiced
+sch_a_stressed	TRUE	5	Schraube	target	stressed	consonantcluster	2	aʊ	ʃ	3.5	1.92	ʃrˈaʊ.bə	Hubschrauber	a	a	fricative	alveolar	unvoiced
