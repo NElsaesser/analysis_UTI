@@ -1,0 +1,1330 @@
+---
+title: "Analysing Ultrasound Tongue Imaging data using (M)FPCA and GAMM -- Testing with random effects"
+author: 
+  - name:
+      given: 'Nathalie'
+      family: 'Elsässer'
+    affiliations:
+      name: 'Acoustics Research Institute, <br> Austrian Academy of Sciences, Vienna'
+    email: 'mailto:nathalie.elsaesser@oeaw.ac.at'
+date: "2025-08-26"
+output: html_document
+format:
+  html:
+    theme: cosmo
+    code-fold: false
+    toc: true
+    toc-location: left
+    reference-location: margin
+    df-print: kable
+    embed-resources: true
+    fig-cap-location: top
+bibliography: references.bib
+number-sections: true
+---
+
+```{r libraries, warning=FALSE, message=FALSE}
+# data processing and plotting
+library(tidyverse)
+library(plotly)
+library(rticulate)
+# GAMs
+library(mgcv)
+library(itsadug)
+# FPCA
+library(funData)
+library(MFPCA)
+# install.packages("devtools")
+# devtools::install_github("uasolo/landmarkregUtils")
+library(landmarkregUtils)
+library(abind)
+# LMER
+library(lme4)
+library(emmeans)
+# plotting
+library(RColorBrewer)
+library(gridExtra)
+source("polar_utils.R")
+# convert Umlaute to ascii
+library(berryFunctions)
+```
+
+
+```{r}
+rhotic_data_static <- readRDS("../data/RDS/rhotic_data_static15.rds") %>% mutate(target = convertUmlaut(target))
+items <- read.table("../data/itemsv.txt", header = T, sep = "\t")
+group <- read.table("../data/participant_group.txt", header = T, sep = "\t")
+
+static_items <- merge(merge(rhotic_data_static, items, by = "target"), group, by = "participant") %>% plyr::arrange(clip_id,knot)
+```
+
+# stressed vs unstressed uvular rhotics
+
+In this script I will ask the following question:
+
+Is the tongue position during the articulation of uvular rhotics different depending on if the rhotics appear in a stressed or in an unstressed syllable?
+
+Hypothesis: The tongue dorsum is higher and the tongue shape is overall steeper in stressed than in unstressed syllables.
+
+Disclaimer: This is just an example. If we do not find any differences, it's fine :-)
+
+```{r}
+uvular_static <- subset(static_items, group == "u") %>% mutate(stress = as.factor(stress))
+```
+
+```{r}
+str(uvular_static)
+```
+
+This dataset contains only participants using uvular rhotics. `x_mean_z` and `y_mean_z` contain the z-scored mean x and y values during the articulation of one rhotic. Each tongue curve is described by 11 knots contained in `knot`. The column `stress` contains the information if the rhotic appears in a stressed or unstressed variable. Each participant read 319 sentences containing one rhotic, of those sentences, about half contain a stressed and half an unstressed rhotic, therefore `stress` is a between-item, within-subjects variable.
+
+## MV GAMM
+
+### without random effect
+
+First, we calculate a multivariate GAM including a smooth over knot (without any random effects) as demonstrated by Coretta [-@Coretta2025]:
+
+```{r}
+stress_mvgam <- mgcv::gam(list(
+    x_mean_z ~ stress +
+      s(knot, by = stress, k = 5),
+    y_mean_z ~ stress +
+      s(knot, by = stress, k = 5)
+  ),
+  data = uvular_static,
+  family = mvn(d = 2) # multivariate normal family, two dimensions
+)
+```
+
+GAM summary:
+
+```{r}
+summary(stress_mvgam)
+```
+
+Predict the tongue contours from the GAMM:
+
+```{r}
+stress_mvgam_frame <- expand_grid(
+  stress = uvular_static$stress %>% levels(),
+  knot = seq(0, 10, by = 1)
+)
+```
+
+```{r}
+stress_mvgam_predict <- predict(stress_mvgam, stress_mvgam_frame, se.fit = T) %>% 
+  as.data.frame() %>% 
+  as_tibble()
+
+# Rename columns
+colnames(stress_mvgam_predict) <- c("x_mean_z", "y_mean_z", "x_mean_se", "y_mean_se")
+
+# combine both data frames
+stress_mvgam_predict <- bind_cols(stress_mvgam_frame, stress_mvgam_predict) %>% 
+  mutate(
+    # calculate the lower and upper limits of 95% Confidence intervals (CI)
+    x_mean_lo = x_mean_z - (1.96 * x_mean_se),
+    x_mean_hi = x_mean_z + (1.96 * x_mean_se),
+    y_mean_lo = y_mean_z - (1.96 * y_mean_se),
+    y_mean_hi = y_mean_z + (1.96 * y_mean_se)
+  )
+```
+
+Plot the result:
+
+```{r}
+stress_mvgam_plot <- stress_mvgam_predict %>% 
+  ggplot(aes(x_mean_z, y_mean_z, group = stress, color = stress)) +
+  geom_path() +
+  geom_errorbarh(aes(xmin = x_mean_lo, xmax = x_mean_hi), alpha = 0.5) +
+  geom_errorbar(aes(ymin = y_mean_lo, ymax = y_mean_hi), alpha = 0.5) +
+  coord_fixed() +
+  # facet_wrap(vars(stress), ncol = 2) +
+  theme(legend.position = "bottom")
+```
+
+
+```{r}
+#| label: fig-stress-mvgam
+#| fig-cap: "MV-GAM: stressed vs unstressed uvular rhotics"
+
+stress_mvgam_plot
+```
+
+Only a small difference between the two tongue shapes is visible. The tongue shape of the rhotics articulated in stressed syllables seems to be slightly steeper and the tongue tip is further down compared to the tongue shape during the unstressed rhotics.
+
+### add participant as a factor smooth {#sec-mv-gamm-part-fs}
+
+As we can see in the following plot, the participants all have very different mean tongue shapes for their uvular rhotics:
+
+```{r}
+uvular_static %>% 
+  group_by(participant, knot) %>% 
+  summarise(
+    mean_x = mean(x_mean_z),
+    mean_y = mean(y_mean_z),
+    x_hi = mean(x_mean_z) + 1.96 * sd(x_mean_z),
+    x_lo = mean(x_mean_z) - 1.96 * sd(x_mean_z),
+    y_hi = mean(y_mean_z) + 1.96 * sd(y_mean_z),
+    y_lo = mean(y_mean_z) - 1.96 * sd(y_mean_z)
+  ) %>% 
+  ggplot(aes(mean_x, mean_y, group = participant, color = participant)) +
+  geom_path() +
+  geom_errorbarh(aes(xmin = x_lo, xmax = x_hi), alpha = 0.5) +
+  geom_errorbar(aes(ymin = y_lo, ymax = y_hi), alpha = 0.5) +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+```
+
+We want to take this difference into consideration and use the speaker variable as a non-linear random effect/"factor smooth" to model the non-linear difference of the tongue shape for each speaker. `stress` is added as a `by` variable to model the individual variability between the two different stress conditions.
+
+```{r}
+uvular_static$participant <- as.factor(uvular_static$participant)
+stress_mvgam_fs <- mgcv::gam(list(
+    x_mean_z ~ stress +
+      s(knot, by = stress, k = 5) +
+      s(knot, participant, by = stress, bs = "fs", m = 1), # using participant as a factor smooth as in Coretta (2025)
+    y_mean_z ~ stress +
+      s(knot, by = stress, k = 5) +
+      s(knot, participant, by = stress, bs = "fs", m = 1)
+  ),
+  data = uvular_static,
+  family = mvn(d = 2) # multivariate normal family, two dimensions
+)
+```
+
+GAM summary:
+
+```{r}
+summary(stress_mvgam_fs)
+```
+
+Predict the tongue contours from the GAMM:
+
+```{r}
+stress_mvgam_fs_frame <- expand_grid(
+  stress = uvular_static$stress %>% levels(),
+  knot = seq(0, 10, by = 1),
+  participant = uvular_static$participant %>% levels()
+)
+```
+
+```{r}
+stress_mvgam_fs_predict <- predict(stress_mvgam_fs, stress_mvgam_fs_frame, se.fit = T) %>% 
+  as.data.frame() %>% 
+  as_tibble()
+
+# Rename columns
+colnames(stress_mvgam_fs_predict) <- c("x_mean_z", "y_mean_z", "x_mean_se", "y_mean_se")
+
+# combine both data frames
+stress_mvgam_fs_predict <- bind_cols(stress_mvgam_fs_frame, stress_mvgam_fs_predict) %>% 
+  mutate(
+    # calculate the lower and upper limits of 95% Confidence intervals (CI)
+    x_mean_lo = x_mean_z - (1.96 * x_mean_se),
+    x_mean_hi = x_mean_z + (1.96 * x_mean_se),
+    y_mean_lo = y_mean_z - (1.96 * y_mean_se),
+    y_mean_hi = y_mean_z + (1.96 * y_mean_se)
+  )
+```
+
+Plot of the different speakers:
+
+```{r}
+stress_mvgam_fs_plot <- stress_mvgam_fs_predict %>% 
+  ggplot(aes(x_mean_z, y_mean_z, group = stress, color = stress)) +
+  geom_path() +
+  geom_errorbarh(aes(xmin = x_mean_lo, xmax = x_mean_hi), alpha = 0.5) +
+  geom_errorbar(aes(ymin = y_mean_lo, ymax = y_mean_hi), alpha = 0.5) +
+  coord_fixed() +
+  facet_wrap(vars(participant), ncol = 4) +
+  theme(legend.position = "bottom")
+```
+
+
+```{r}
+#| fig-cap: "MV-GAM: stressed vs unstressed uvular rhotics, factor-smooth: difference over knot with respect to general pattern for each of the participants, allowing for individual variability by stress"
+
+stress_mvgam_fs_plot
+```
+
+Now we want to exclude the factor smooths from the prediction (see @Coretta2025) and get a general plot displaying the differences between uvular rhotics in stressed and unstressed syllables:
+
+```{r}
+excl <- c("s(knot,factor(participant)):stressstressed", "s(knot,factor(participant)):stressunstressed", "s.1(knot,factor(participant)):stressstressed", "s.1(knot,factor(participant)):stressunstressed")
+```
+
+```{r}
+stress_mvgam_fs_predict_ex <- predict(stress_mvgam_fs, stress_mvgam_fs_frame, se.fit = T, exclude = excl) %>% 
+  as.data.frame() %>% 
+  as_tibble()
+
+# Rename columns
+colnames(stress_mvgam_fs_predict_ex) <- c("x_mean_z", "y_mean_z", "x_mean_se", "y_mean_se")
+
+# combine both data frames
+stress_mvgam_fs_predict_ex <- bind_cols(stress_mvgam_fs_frame, stress_mvgam_fs_predict_ex) %>% 
+  mutate(
+    # calculate the lower and upper limits of 95% Confidence intervals (CI)
+    x_mean_lo = x_mean_z - (1.96 * x_mean_se),
+    x_mean_hi = x_mean_z + (1.96 * x_mean_se),
+    y_mean_lo = y_mean_z - (1.96 * y_mean_se),
+    y_mean_hi = y_mean_z + (1.96 * y_mean_se)
+  )
+```
+
+Now we plot:
+```{r}
+stress_mvgam_fs_ex_plot <- stress_mvgam_fs_predict_ex %>% subset(participant == "vp004") %>% 
+  ggplot(aes(x_mean_z, y_mean_z, group = stress, color = stress)) +
+  geom_path() +
+  geom_errorbarh(aes(xmin = x_mean_lo, xmax = x_mean_hi), alpha = 0.5) +
+  geom_errorbar(aes(ymin = y_mean_lo, ymax = y_mean_hi), alpha = 0.5) +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+```
+
+
+```{r}
+#| fig-cap: "MV-GAM: stressed vs unstressed uvular rhotics, excluded factor smooth over knot for participant by stress"
+
+stress_mvgam_fs_ex_plot
+```
+
+This looks like it worked. We still see a small difference between the splines. For both of the splines, the tongue tip (on the right) is lower than in the first model.
+
+## UV GAMM
+
+Now I will do the same but this time using a univariate GAMM as proposed in Gubian [-@Gubian2025]. Our variable encoding `stress` and `dimension` is `stress.dim`.
+
+### without random effect
+
+```{r}
+uvular_static_long <- uvular_static %>% 
+  pivot_longer(c(x_mean_z,y_mean_z), names_to = "dimension", values_to = "position") %>% 
+  mutate(stress.dim = paste0(stress,".",dimension)) %>% 
+  mutate(stress.dim = factor(stress.dim)) %>% 
+  arrange(clip_id, stress.dim, knot) %>% select(-c("x_mean", "y_mean"))
+
+stress_uvgam <- bam(position ~ stress.dim + s(knot, by = stress.dim),
+                    data = uvular_static_long,
+                    family = "scat",
+                    discrete = T)
+AR1.rho <- acf_resid(stress_uvgam)[2]
+stress_uvgam <- bam(position ~ stress.dim + s(knot, by = stress.dim),
+                    data = uvular_static_long,
+                    rho = AR1.rho,
+                    AR.start = uvular_static_long %>% pull(knot) == 0,
+                    family = "scat",
+                    discrete = T)
+```
+
+GAM summary:
+```{r}
+summary(stress_uvgam)
+```
+
+```{r}
+gam.check(stress_uvgam)
+```
+
+```{r}
+acf_resid(stress_uvgam)
+```
+
+Predict the tongue contours from the GAMM:
+
+```{r}
+stress_uvgam_frame <- expand_grid(
+  knot = 0:10,
+  stress.dim = uvular_static_long$stress.dim %>% levels()
+)
+```
+
+```{r}
+stress_uvgam_predict <- predict(stress_uvgam, stress_uvgam_frame, se.fit = T) %>% 
+  as.data.frame() %>% as_tibble() %>% 
+  bind_cols(stress_uvgam_frame) %>% separate_wider_delim(stress.dim, ".", names = c("stress", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = c("fit", "se.fit"))
+
+colnames(stress_uvgam_predict) <- c("knot", "stress", "x_mean_z", "y_mean_z", "x_mean_z_se", "y_mean_z_se")
+```
+
+```{r}
+gam_uv_pred_plot <- stress_uvgam_predict %>% ggplot() +
+  aes(x_mean_z, y_mean_z, group = stress, color = stress, fill = stress) +
+  geom_path() + geom_errorbarh(aes(xmin = x_mean_z - 1.96 * x_mean_z_se, xmax = x_mean_z + 1.96 * x_mean_z_se), alpha = 0.5) +
+  geom_errorbar(aes(ymin = y_mean_z - 1.96 * y_mean_z_se, ymax = y_mean_z + 1.96 * y_mean_z_se), alpha = 0.5) +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "UV-GAM: stressed vs unstressed uvular rhotics"
+
+gam_uv_pred_plot
+```
+
+
+When we compare to the multivariate GAMM:
+
+```{r}
+par(mfrow = c(1, 2))
+stress_mvgam_plot + labs(title = "Multivariate GAMM")
+gam_uv_pred_plot + labs(title = "Univariate GAMM")
+```
+
+The two plots differ in the front part of the tongue contours. But both display only a very small difference between stressed and unstressed rhotics: The tongue tip is a bit lower in the stressed rhotics.
+
+### add participant as a factor smooth
+
+Now I want to add a factor smooth for the variable `participant` again, as I did in the MV GAMM. My question now was if I should include a `by` variable in the fs term?
+
+#### without by variable
+
+Here I fit the GAM model with the factor smooth term for `participant` but without adding a `by` variable (**s(knot, participant, bs = "fs", m = 1)**).
+
+```{r}
+uvular_static_long$participant <- as.factor(uvular_static_long$participant)
+stress_uvgam_fs <- bam(position ~ stress.dim + 
+                         s(knot, by = stress.dim) + 
+                         s(knot, participant, bs = "fs", m = 1), # factor smooth for participant
+                    data = uvular_static_long,
+                    family = "scat",
+                    discrete = T)
+AR1.rho <- acf_resid(stress_uvgam_fs)[2]
+stress_uvgam_fs <- bam(position ~ stress.dim + s(knot, by = stress.dim) +
+                         s(knot, participant, bs = "fs", m = 1),
+                    data = uvular_static_long,
+                    rho = AR1.rho,
+                    AR.start = uvular_static_long %>% pull(knot) == 0,
+                    family = "scat",
+                    discrete = T)
+```
+
+```{r}
+summary(stress_uvgam_fs)
+```
+
+```{r}
+gam.check(stress_uvgam_fs)
+```
+
+```{r}
+acf_resid(stress_uvgam_fs)
+```
+
+Predict the tongue contours from the GAMM:
+
+```{r}
+stress_uvgam_fs_frame <- expand_grid(
+  knot = 0:10,
+  stress.dim = uvular_static_long$stress.dim %>% levels(),
+  participant = uvular_static_long$participant %>% levels()
+)
+```
+
+```{r}
+stress_uvgam_fs_predict <- predict(stress_uvgam_fs, stress_uvgam_fs_frame, se.fit = T) %>% 
+  as.data.frame() %>% as_tibble() %>% 
+  bind_cols(stress_uvgam_fs_frame) %>% separate_wider_delim(stress.dim, ".", names = c("stress", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = c("fit", "se.fit"))
+
+colnames(stress_uvgam_fs_predict) <- c("knot", "stress", "participant", "x_mean_z", "y_mean_z", "x_mean_z_se", "y_mean_z_se")
+```
+
+```{r}
+gam_uv_fs_pred_plot <- stress_uvgam_fs_predict %>% ggplot() +
+  aes(x_mean_z, y_mean_z, group = stress, color = stress, fill = stress) +
+  geom_path() + geom_errorbarh(aes(xmin = x_mean_z - 1.96 * x_mean_z_se, xmax = x_mean_z + 1.96 * x_mean_z_se), alpha = 0.5) +
+  geom_errorbar(aes(ymin = y_mean_z - 1.96 * y_mean_z_se, ymax = y_mean_z + 1.96 * y_mean_z_se), alpha = 0.5) +
+  facet_wrap(vars(participant), ncol = 4) +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "MV-GAM: stressed vs unstressed uvular rhotics, factor smooth over knot for participant"
+
+gam_uv_fs_pred_plot
+```
+
+
+Looks very similar to the multivariate predicted contours of the participants.
+
+Now I want to remove the factor smooth for participant:
+
+```{r}
+excl <- c("s(knot,participant)")
+```
+
+```{r}
+stress_uvgam_fs_predict2 <- predict(stress_uvgam_fs, stress_uvgam_fs_frame, se.fit = T, exclude = excl) %>% 
+  as.data.frame() %>% as_tibble() %>% 
+  bind_cols(stress_uvgam_fs_frame) %>% separate_wider_delim(stress.dim, ".", names = c("stress", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = c("fit", "se.fit"))
+
+colnames(stress_uvgam_fs_predict2) <- c("knot", "stress", "participant", "x_mean_z", "y_mean_z", "x_mean_z_se", "y_mean_z_se")
+```
+
+```{r}
+gam_uv_fs_pred_plot2 <- stress_uvgam_fs_predict2 %>% subset(participant == "vp004") %>% ggplot() +
+  aes(x_mean_z, y_mean_z, group = stress, color = stress, fill = stress) +
+  geom_path() + geom_errorbarh(aes(xmin = x_mean_z - 1.96 * x_mean_z_se, xmax = x_mean_z + 1.96 * x_mean_z_se), alpha = 0.5) +
+  geom_errorbar(aes(ymin = y_mean_z - 1.96 * y_mean_z_se, ymax = y_mean_z + 1.96 * y_mean_z_se), alpha = 0.5) +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "UV-GAM: stressed vs unstressed uvular rhotics, excluded factor smooth over knot for participant"
+
+gam_uv_fs_pred_plot2
+```
+
+This looks alright. 
+
+Now we could calculate a difference curve for this, e.g.:
+
+```{r}
+plot_diff(stress_uvgam_fs, view = "knot", comp = list(stress.dim = c("stressed.x_mean_z", "unstressed.x_mean_z")),
+            print.summary = FALSE, main = "stressed - unstressed, Dimension x", ylab = "x: stressed - unstressed")
+plot_diff(stress_uvgam_fs, view = "knot", comp = list(stress.dim = c("stressed.y_mean_z", "unstressed.y_mean_z")),
+            print.summary = FALSE, main = "stressed - unstressed, Dimension y", ylab = "y: stressed - unstressed")
+```
+
+
+#### with stress.dim as by variable
+
+Now I will include stress.dim as a `by` variable. It makes sense to me because there is probably individual variability for the participants for each level of `stress.dim`.
+
+```{r}
+stress_uvgam_fsby <- bam(position ~ stress.dim + 
+                         s(knot, by = stress.dim) + 
+                         s(knot, participant, by = stress.dim, bs = "fs", m = 1), # factor smooth for participant
+                    data = uvular_static_long,
+                    family = "scat",
+                    discrete = T)
+AR1.rho <- acf_resid(stress_uvgam_fsby)[2]
+stress_uvgam_fsby <- bam(position ~ stress.dim + s(knot, by = stress.dim) +
+                         s(knot, participant, by = stress.dim, bs = "fs", m = 1),
+                    data = uvular_static_long,
+                    rho = AR1.rho,
+                    AR.start = uvular_static_long %>% pull(knot) == 0,
+                    family = "scat",
+                    discrete = T)
+```
+
+```{r}
+summary(stress_uvgam_fsby)
+```
+
+```{r}
+gam.check(stress_uvgam_fsby)
+```
+
+```{r}
+acf_resid(stress_uvgam_fsby)
+```
+
+Predict the tongue contours from the GAMM:
+
+```{r}
+stress_uvgam_fsby_predict <- predict(stress_uvgam_fsby, stress_uvgam_fs_frame, se.fit = T) %>% 
+  as.data.frame() %>% as_tibble() %>% 
+  bind_cols(stress_uvgam_fs_frame) %>% separate_wider_delim(stress.dim, ".", names = c("stress", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = c("fit", "se.fit"))
+
+colnames(stress_uvgam_fsby_predict) <- c("knot", "stress", "participant", "x_mean_z", "y_mean_z", "x_mean_z_se", "y_mean_z_se")
+```
+
+```{r}
+gam_uv_fsby_pred_plot <- stress_uvgam_fsby_predict %>% ggplot() +
+  aes(x_mean_z, y_mean_z, group = stress, color = stress, fill = stress) +
+  geom_path() + geom_errorbarh(aes(xmin = x_mean_z - 1.96 * x_mean_z_se, xmax = x_mean_z + 1.96 * x_mean_z_se), alpha = 0.5) +
+  geom_errorbar(aes(ymin = y_mean_z - 1.96 * y_mean_z_se, ymax = y_mean_z + 1.96 * y_mean_z_se), alpha = 0.5) + 
+  facet_wrap(vars(participant), ncol = 4) +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "UV-GAM: stressed vs unstressed uvular rhotics, factor smooth over knot for participant by stress.dim"
+
+gam_uv_fsby_pred_plot
+```
+
+Looks very similar to the multivariate predicted contours of the participants.
+
+Now I want to remove the factor smooth for participant:
+
+```{r}
+excl <- c("s(knot,participant):stress.dimstressed.x_mean_z", "s(knot,participant):stress.dimstressed.y_mean_z", "s(knot,participant):stress.dimunstressed.x_mean_z", "s(knot,participant):stress.dimunstressed.y_mean_z")
+```
+
+
+```{r}
+stress_uvgam_fsby_predict2 <- predict(stress_uvgam_fsby, stress_uvgam_fs_frame, se.fit = T, exclude = excl) %>% 
+  as.data.frame() %>% as_tibble() %>% 
+  bind_cols(stress_uvgam_fs_frame) %>% separate_wider_delim(stress.dim, ".", names = c("stress", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = c("fit", "se.fit"))
+
+colnames(stress_uvgam_fsby_predict2) <- c("knot", "stress", "participant", "x_mean_z", "y_mean_z", "x_mean_z_se", "y_mean_z_se")
+```
+
+```{r}
+gam_uv_fsby_pred_plot2 <- stress_uvgam_fsby_predict2 %>% subset(participant == "vp004") %>% ggplot() +
+  aes(x_mean_z, y_mean_z, group = stress, color = stress, fill = stress) +
+  geom_path() + geom_errorbarh(aes(xmin = x_mean_z - 1.96 * x_mean_z_se, xmax = x_mean_z + 1.96 * x_mean_z_se), alpha = 0.5) +
+  geom_errorbar(aes(ymin = y_mean_z - 1.96 * y_mean_z_se, ymax = y_mean_z + 1.96 * y_mean_z_se), alpha = 0.5) +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "UV-GAM: stressed vs unstressed uvular rhotics, excluded factor smooth over knot for participant by stress.dim"
+
+gam_uv_fsby_pred_plot2
+```
+
+
+**Question: Why does it look weird now? Was it wrong to include stress.dim as a `by` variable in the model?**
+
+
+#### with dimension as by variable {#sec-uv-fs-dimension}
+
+I also tried using only dimension as the `by` variable to see if this works better:
+
+```{r}
+uvular_static_long$dimension <- as.factor(uvular_static_long$dimension)
+stress_uvgam_fsbydim <- bam(position ~ stress.dim + 
+                         s(knot, by = stress.dim) + 
+                         s(knot, participant, by = dimension, bs = "fs", m = 1), # factor smooth for participant
+                    data = uvular_static_long,
+                    family = "scat",
+                    discrete = T)
+AR1.rho <- acf_resid(stress_uvgam_fsbydim)[2]
+stress_uvgam_fsbydim <- bam(position ~ stress.dim + 
+                         s(knot, by = stress.dim) + 
+                         s(knot, participant, by = dimension, bs = "fs", m = 1), # factor smooth for participant
+                    data = uvular_static_long,
+                    rho = AR1.rho,
+                    AR.start = uvular_static_long %>% pull(knot) == 0,
+                    family = "scat",
+                    discrete = T)
+```
+
+
+```{r}
+summary(stress_uvgam_fsbydim)
+```
+
+```{r}
+gam.check(stress_uvgam_fsbydim)
+```
+
+```{r}
+acf_resid(stress_uvgam_fsbydim)
+```
+
+Prediction:
+
+```{r}
+stress_uvgam_fsbydim_frame <- expand_grid(
+  knot = 0:10,
+  stress.dim = uvular_static_long$stress.dim %>% levels(),
+  participant = uvular_static_long$participant %>% levels()
+) %>% mutate(
+  dimension = case_when(
+    str_detect(stress.dim, "x_mean_z") ~ "x_mean_z",
+    str_detect(stress.dim, "y_mean_z") ~ "y_mean_z"
+  )
+)
+```
+
+```{r}
+stress_uvgam_fsbydim_predict <- predict(stress_uvgam_fsbydim, stress_uvgam_fsbydim_frame, se.fit = T) %>% 
+  as.data.frame() %>% as_tibble() %>% 
+  bind_cols(stress_uvgam_fsbydim_frame) %>% select(-c("dimension")) %>%  separate_wider_delim(stress.dim, ".", names = c("stress", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = c("fit", "se.fit"))
+
+colnames(stress_uvgam_fsbydim_predict) <- c("knot", "stress", "participant", "x_mean_z", "y_mean_z", "x_mean_z_se", "y_mean_z_se")
+```
+
+```{r}
+stress_uvgam_fsbydim_pred_plot <- stress_uvgam_fsbydim_predict %>% ggplot() +
+  aes(x_mean_z, y_mean_z, group = stress, color = stress, fill = stress) +
+  geom_path() + geom_errorbarh(aes(xmin = x_mean_z - 1.96 * x_mean_z_se, xmax = x_mean_z + 1.96 * x_mean_z_se), alpha = 0.5) +
+  geom_errorbar(aes(ymin = y_mean_z - 1.96 * y_mean_z_se, ymax = y_mean_z + 1.96 * y_mean_z_se), alpha = 0.5) +
+  facet_wrap(vars(participant), ncol = 4) +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "UV-GAM: stressed vs unstressed uvular rhotics, factor smooth over knot for participant by dimension"
+
+stress_uvgam_fsbydim_pred_plot
+```
+
+Then we remove the factor smooth for participant:
+
+```{r}
+excl <- c("s(knot,participant):dimensionx_mean_z", "s(knot,participant):dimensiony_mean_z")
+```
+
+```{r}
+stress_uvgam_fsbydim_predict2 <- predict(stress_uvgam_fsbydim, stress_uvgam_fsbydim_frame, se.fit = T, exclude = excl) %>% 
+  as.data.frame() %>% as_tibble() %>% 
+  bind_cols(stress_uvgam_fsbydim_frame) %>% select(-c("dimension")) %>%  separate_wider_delim(stress.dim, ".", names = c("stress", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = c("fit", "se.fit"))
+
+colnames(stress_uvgam_fsbydim_predict2) <- c("knot", "stress", "participant", "x_mean_z", "y_mean_z", "x_mean_z_se", "y_mean_z_se")
+```
+
+```{r}
+stress_uvgam_fsbydim_pred_plot2 <- stress_uvgam_fsbydim_predict2 %>% subset(participant == "vp005") %>% ggplot() +
+  aes(x_mean_z, y_mean_z, group = stress, color = stress, fill = stress) +
+  geom_path() + geom_errorbarh(aes(xmin = x_mean_z - 1.96 * x_mean_z_se, xmax = x_mean_z + 1.96 * x_mean_z_se), alpha = 0.5) +
+  geom_errorbar(aes(ymin = y_mean_z - 1.96 * y_mean_z_se, ymax = y_mean_z + 1.96 * y_mean_z_se), alpha = 0.5) +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "UV-GAM: stressed vs unstressed uvular rhotics, excluded factor smooth over knot for participant by dimension"
+
+stress_uvgam_fsbydim_pred_plot2
+```
+
+This looks still weird. **Question: What would be an appropriate factor smooth term for this model?**
+
+## adding more variables?
+
+The GAMMs now only differentiate between tongue contours in stressed vs unstressed syllables. If I now wanted to look at differences between rhotics in stressed vs unstressed syllables but also split up in different phonetic environments (wordinitial (e.g. *Reis*) / syllableinitial (e.g. *einreisen*) / in a consonant cluster  (e.g. *Kreis*)), how would this look like? Can I just add any number of variables to the equation?
+
+Minimal example (without factor smooths) of what I mean:
+
+```{r}
+uvular_static_long_cond <- uvular_static %>% 
+  pivot_longer(c(x_mean_z, y_mean_z), names_to = "dimension", values_to = "position") %>% 
+  mutate(stress.cond = factor(paste0(stress,".",type))) %>% 
+  mutate(stress.cond.dim = factor(paste0(stress.cond,".",dimension))) %>%
+  arrange(clip_id, stress.cond.dim, knot) %>% select(-c("x_mean", "y_mean"))
+
+condition_uvgam <- bam(position ~ stress.cond.dim + s(knot, by = stress.cond.dim),
+                    data = uvular_static_long_cond,
+                    family = "scat",
+                    discrete = T)
+AR1.rho <- acf_resid(condition_uvgam)[2]
+condition_uvgam <- bam(position ~ stress.cond.dim + s(knot, by = stress.cond.dim),
+                    data = uvular_static_long_cond,
+                    rho = AR1.rho,
+                    AR.start = uvular_static_long_cond %>% pull(knot) == 0,
+                    family = "scat",
+                    discrete = T)
+
+summary(condition_uvgam)
+```
+
+Predict the tongue contours from the GAMM:
+
+```{r}
+condition_uvgam_frame <- expand_grid(
+  knot = 0:10,
+  stress.cond.dim = uvular_static_long_cond$stress.cond.dim %>% levels()
+)
+```
+
+```{r}
+condition_uvgam_predict <- predict(condition_uvgam, condition_uvgam_frame, se.fit = T) %>% 
+  as.data.frame() %>% as_tibble() %>% bind_cols(condition_uvgam_frame) %>% separate_wider_delim(stress.cond.dim, ".", names = c("stress", "condition", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = c("fit", "se.fit"))
+
+colnames(condition_uvgam_predict) <- c("knot", "stress", "condition", "x_mean_z", "y_mean_z", "x_mean_z_se", "y_mean_z_se")
+```
+
+```{r}
+condition_uvgam_pred_plot <- condition_uvgam_predict %>% ggplot() +
+  aes(x_mean_z, y_mean_z, group = stress, color = stress) +
+  geom_path() + 
+  geom_errorbarh(aes(xmin = x_mean_z - 1.96 * x_mean_z_se, xmax = x_mean_z + 1.96 * x_mean_z_se), alpha = 0.5) +
+  geom_errorbar(aes(ymin = y_mean_z - 1.96 * y_mean_z_se, ymax = y_mean_z + 1.96 * y_mean_z_se), alpha = 0.5) +
+  coord_fixed() +
+  facet_wrap(vars(condition), ncol = 2) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "UV-GAM: stressed vs unstressed uvular rhotics in different conditions (wordinitial, syllableinitial, consonantcluster)"
+
+condition_uvgam_pred_plot
+```
+
+--> much larger difference between rhotics in stressed and unstressed position in syllable-initial rhotics than in rhotics in other conditions.
+
+**Question: Can I just add more categories to the model like I did here or do I have to add them separately first before making an interaction term?**
+
+e.g.:
+
+`bam(position ~ stress.cond.dim + s(knot, by = stress.cond.dim))` vs `bam(position ~ stress.cond.dim + s(knot, by = stress.dim) + s(knot, by = cond)` and then compare those two, e.g. with `compareML`?
+
+
+## adding more factor smooths?
+
+Another question I had was if it is possible to add multiple factor smooths, additionally to the `participant` variable. For example, the tongue position might differ depending on the surrounding sounds, e.g., if the following vowel is a back vowel (o/u/...), a front vowel (i/e/...) or an /a/.
+
+When I just add **s(knot, factor(vowel_cat), by = stress, bs = "fs", m = 1)** to the MV GAMM in @sec-mv-gamm-part-fs it doesn't work at all and I just get this error message:
+
+```{r, error = T}
+uvular_static$vowel_cat <- as.factor(uvular_static$vowel_cat)
+uvular_static$participant <- as.factor(uvular_static$participant)
+
+vow_mvgam_fs <- mgcv::gam(list(
+    x_mean_z ~ stress +
+      s(knot, by = stress, k = 5) +
+      s(knot, participant, by = stress, bs = "fs", m = 1) + # participant as a factor smooth as in Coretta (2025)
+      s(knot, vowel_cat, by = stress, bs = "fs", m = 1), # vowel as an additional factor smooth?
+    y_mean_z ~ stress +
+      s(knot, by = stress, k = 5) +
+      s(knot, participant, by = stress, bs = "fs", m = 1) +
+      s(knot, vowel_cat, by = stress, bs = "fs", m = 1)
+  ),
+  data = uvular_static,
+  family = mvn(d = 2) # multivariate normal family, two dimensions
+)
+```
+
+The UV GAMM works without the `by` variables from the factor smooths:
+
+```{r}
+uvular_static_long$vowel_cat <- as.factor(uvular_static_long$vowel_cat)
+uvular_static_long$participant <- as.factor(uvular_static_long$participant)
+vow_uvgam_fs <- bam(position ~ stress.dim + 
+                         s(knot, by = stress.dim) + 
+                         s(knot, participant, bs = "fs", m = 1) + # factor smooth for participant
+                         s(knot, vowel_cat, bs = "fs", m = 1),
+                    data = uvular_static_long,
+                    family = "scat",
+                    discrete = T)
+AR1.rho <- acf_resid(vow_uvgam_fs)[2]
+vow_uvgam_fs <- bam(position ~ stress.dim + 
+                      s(knot, by = stress.dim) +
+                      s(knot, participant, bs = "fs", m = 1) +
+                      s(knot, vowel_cat, bs = "fs", m = 1),
+                    data = uvular_static_long,
+                    rho = AR1.rho,
+                    AR.start = uvular_static_long %>% pull(knot) == 0,
+                    family = "scat",
+                    discrete = T)
+
+summary(vow_uvgam_fs)
+```
+
+Prediction:
+
+```{r}
+vow_uvgam_fs_frame <- expand_grid(
+  knot = 0:10,
+  stress.dim = uvular_static_long$stress.dim %>% levels(),
+  participant = uvular_static_long$participant %>% levels(),
+  vowel_cat = uvular_static_long$vowel_cat %>% levels()
+)
+```
+
+```{r}
+vow_uvgam_fs_predict <- predict(vow_uvgam_fs, vow_uvgam_fs_frame, se.fit = T) %>% 
+  as.data.frame() %>% as_tibble() %>% 
+  bind_cols(vow_uvgam_fs_frame) %>% separate_wider_delim(stress.dim, ".", names = c("stress", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = c("fit", "se.fit"))
+
+colnames(vow_uvgam_fs_predict) <- c("knot", "stress", "participant", "vow_cat", "x_mean_z", "y_mean_z", "x_mean_z_se", "y_mean_z_se")
+```
+
+```{r}
+vow_uvgam_fs_plot <- vow_uvgam_fs_predict %>% ggplot() +
+  aes(x_mean_z, y_mean_z, group = stress, color = stress) +
+  geom_path() + geom_errorbarh(aes(xmin = x_mean_z - 1.96 * x_mean_z_se, xmax = x_mean_z + 1.96 * x_mean_z_se), alpha = 0.5) +
+  geom_errorbar(aes(ymin = y_mean_z - 1.96 * y_mean_z_se, ymax = y_mean_z + 1.96 * y_mean_z_se), alpha = 0.5) +
+  facet_grid(participant ~ vow_cat) +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "UV-GAM: stressed vs unstressed uvular rhotics, two factor smooths: 1. over knot for participant, 2. over knot for vowel-category (front vowel/back vowel/a)"
+
+vow_uvgam_fs_plot
+```
+
+Now, exclude the factor smooth from the prediction:
+
+```{r}
+excl <- c("s(knot,participant)", "s(knot,vowel_cat)")
+```
+
+```{r}
+vow_uvgam_fs_predict2 <- predict(vow_uvgam_fs, vow_uvgam_fs_frame, se.fit = T, exclude = excl) %>% 
+  as.data.frame() %>% as_tibble() %>% 
+  bind_cols(vow_uvgam_fs_frame) %>% separate_wider_delim(stress.dim, ".", names = c("stress", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = c("fit", "se.fit"))
+
+colnames(vow_uvgam_fs_predict2) <- c("knot", "stress", "participant", "vow_cat", "x_mean_z", "y_mean_z", "x_mean_z_se", "y_mean_z_se")
+```
+
+```{r}
+vow_uvgam_fs_plot2 <- vow_uvgam_fs_predict2 %>% subset(participant == "vp004" & vow_cat == "a") %>% ggplot() +
+  aes(x_mean_z, y_mean_z, group = stress, color = stress) +
+  geom_path() + geom_errorbarh(aes(xmin = x_mean_z - 1.96 * x_mean_z_se, xmax = x_mean_z + 1.96 * x_mean_z_se), alpha = 0.5) +
+  geom_errorbar(aes(ymin = y_mean_z - 1.96 * y_mean_z_se, ymax = y_mean_z + 1.96 * y_mean_z_se), alpha = 0.5) +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "UV-GAM: stressed vs unstressed uvular rhotics, excluded two factor smooths: 1. over knot for participant, 2. over knot for vowel-category (front vowel/back vowel/a)"
+
+vow_uvgam_fs_plot2
+```
+
+The difference between tongue contour of rhotics in stressed vs unstressed position nearly vanishes in this model, so maybe the initial difference we saw, is due to the distribution of following vowels instead of the stress.
+
+
+# What about between-participant variables?
+
+What if we wanted to model the difference between uvular and alveolar rhotics? In the current data set, we have 8 speakers using uvular rhotics and 7 speakers using alveolar rhotics, so this is a between-speaker variable.
+
+The variable `group` describes the rhotic variant, either being *a* for *alveolar* or *u* for *uvular*.
+
+```{r}
+static_items_long <- static_items %>% 
+  pivot_longer(c(x_mean_z,y_mean_z), names_to = "dimension", values_to = "position") %>% 
+  mutate(group.dim = paste0(group,".",dimension)) %>% 
+  mutate(group.dim = factor(group.dim)) %>% 
+  arrange(clip_id, group.dim, knot) %>% select(-c("x_mean", "y_mean"))
+```
+
+The basic univariate GAM should look like this:
+
+```{r}
+ua_uvgam <- bam(position ~ group.dim + 
+                  s(knot, by = group.dim),
+                    data = static_items_long,
+                    family = "scat",
+                    discrete = T)
+AR1.rho <- acf_resid(ua_uvgam)[2]
+ua_uvgam <- bam(position ~ group.dim + 
+                  s(knot, by = group.dim),
+                    data = static_items_long,
+                    rho = AR1.rho,
+                    AR.start = static_items_long %>% pull(knot) == 0,
+                    family = "scat",
+                    discrete = T)
+summary(ua_uvgam)
+```
+
+Prediction:
+
+```{r}
+ua_uvgam_frame <- expand_grid(
+  knot = 0:10,
+  group.dim = static_items_long$group.dim %>% levels()
+)
+```
+
+```{r}
+ua_uvgam_predict <- predict(ua_uvgam, ua_uvgam_frame, se.fit = T) %>% 
+  as.data.frame() %>% as_tibble() %>% 
+  bind_cols(ua_uvgam_frame) %>% separate_wider_delim(group.dim, ".", names = c("group", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = c("fit", "se.fit"))
+
+colnames(ua_uvgam_predict) <- c("knot", "group", "x_mean_z", "y_mean_z", "x_mean_z_se", "y_mean_z_se")
+```
+
+```{r}
+ua_uvgam_pred_plot <- ua_uvgam_predict %>% ggplot() +
+  aes(x_mean_z, y_mean_z, group = group, color = group) +
+  geom_path() + geom_errorbarh(aes(xmin = x_mean_z - 1.96 * x_mean_z_se, xmax = x_mean_z + 1.96 * x_mean_z_se), alpha = 0.5) +
+  geom_errorbar(aes(ymin = y_mean_z - 1.96 * y_mean_z_se, ymax = y_mean_z + 1.96 * y_mean_z_se), alpha = 0.5) +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "UV-GAM: alveolar vs uvular rhotics"
+
+ua_uvgam_pred_plot
+```
+
+As expected, we can see a clear difference between these two groups.
+
+## add participant as a factor smooth {#between-participant-factor-smooth}
+
+**Question: What if we wanted to add a factor smooth for participant to this model? Since `group` is not a within-speaker variable, we wouldn't use it as a `by` variable (comparable to the `language` variable in @Coretta2025), right? What about dimension?**
+
+```{r}
+static_items_long$participant <- as.factor(static_items_long$participant)
+ua_uvgam_fs <- bam(position ~ group.dim + 
+                  s(knot, by = group.dim) +
+                  s(knot, participant, bs = "fs", m = 1), # factor smooth for participant?
+                    data = static_items_long,
+                    family = "scat",
+                    discrete = T)
+AR1.rho <- acf_resid(ua_uvgam_fs)[2]
+ua_uvgam_fs <- bam(position ~ group.dim + 
+                  s(knot, by = group.dim) +
+                  s(knot, participant, bs = "fs", m = 1), # factor smooth for participant?
+                    data = static_items_long,
+                    rho = AR1.rho,
+                    AR.start = static_items_long %>% pull(knot) == 0,
+                    family = "scat",
+                    discrete = T)
+```
+
+```{r}
+summary(ua_uvgam_fs)
+```
+
+
+Prediction if we do not remove the random effects:
+
+```{r}
+frame_predict_ua_uv_fs_gam <- expand_grid(
+  participant = static_items_long$participant %>% levels(),
+  knot = c(0:10),
+  dim = c("x_mean_z", "y_mean_z")
+) %>% mutate(
+  group = case_when(
+    participant %in% c("vp004", "vp005", "vp006", "vp007", "vp009", "vp020", "vp038", "vp045") ~ "u",
+    participant %in% c("vp008", "vp010", "vp023", "vp040", "vp047", "vp053", "vp056") ~ "a"
+  )
+) %>% mutate(
+  group.dim = paste0(group, ".", dim)
+) %>% select(-c("group", "dim"))
+```
+
+```{r}
+ua_uv_fs_gam_predict <- predict(ua_uvgam_fs, frame_predict_ua_uv_fs_gam, se.fit = F) %>% 
+  as.data.frame() %>% 
+  as_tibble() %>% 
+  bind_cols(frame_predict_ua_uv_fs_gam) %>% 
+  separate_wider_delim(group.dim, ".", names = c("group", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = ".")
+```
+
+Plot:
+
+```{r}
+ua_uv_gam_fs_plot <- ggplot(ua_uv_fs_gam_predict) +
+  aes(x_mean_z, y_mean_z, group = participant, color = group) +
+  geom_path() +
+  coord_fixed() +
+  facet_wrap(vars(participant), ncol = 5) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "UV-GAM: alveolar vs uvular rhotics, factor smooth over knot for participant"
+
+ua_uv_gam_fs_plot
+```
+
+
+If we remove the random effects:
+
+```{r}
+excl <- c("s(knot,participant)")
+ua_uv_fs_gam_predict2 <- predict(ua_uvgam_fs, frame_predict_ua_uv_fs_gam, se.fit = F, exclude = excl) %>% 
+  as.data.frame() %>% 
+  as_tibble() %>% 
+  bind_cols(frame_predict_ua_uv_fs_gam) %>% 
+  separate_wider_delim(group.dim, ".", names = c("group", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = ".")
+ua_uv_fs_pred_plot2 <- ggplot(ua_uv_fs_gam_predict2 %>% subset(participant %in% c("vp004", "vp008"))) +
+  aes(x_mean_z, y_mean_z, group = group, color = group) +
+  geom_path() +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "UV-GAM: alveolar vs uvular rhotics, excluded factor smooth over knot for participant"
+
+ua_uv_fs_pred_plot2
+```
+
+
+If we add dimension as a `by` variable:
+
+```{r}
+static_items_long$dimension <- as.factor(static_items_long$dimension)
+ua_uvgam_fsdim <- bam(position ~ group.dim + 
+                  s(knot, by = group.dim) +
+                  s(knot, participant, by = dimension, bs = "fs", m = 1), # factor smooth for participant?
+                    data = static_items_long,
+                    family = "scat",
+                    discrete = T)
+AR1.rho <- acf_resid(ua_uvgam_fsdim)[2]
+ua_uvgam_fsdim <- bam(position ~ group.dim + 
+                  s(knot, by = group.dim) +
+                  s(knot, participant, by = dimension, bs = "fs", m = 1), # factor smooth for participant?
+                    data = static_items_long,
+                    rho = AR1.rho,
+                    AR.start = static_items_long %>% pull(knot) == 0,
+                    family = "scat",
+                    discrete = T)
+summary(ua_uvgam_fsdim)
+```
+
+Prediction:
+
+```{r}
+frame_predict_ua_uv_fsdim_gam <- expand_grid(
+  participant = static_items_long$participant %>% levels(),
+  knot = c(0:10),
+  dimension = c("x_mean_z", "y_mean_z")
+) %>% mutate(
+  group = case_when(
+    participant %in% c("vp004", "vp005", "vp006", "vp007", "vp009", "vp020", "vp038", "vp045") ~ "u",
+    participant %in% c("vp008", "vp010", "vp023", "vp040", "vp047", "vp053", "vp056") ~ "a"
+  )
+) %>% mutate(
+  group.dim = paste0(group, ".", dimension)
+) %>% select(-c("group"))
+```
+
+```{r}
+ua_uv_fsdim_gam_predict <- predict(ua_uvgam_fsdim, frame_predict_ua_uv_fsdim_gam, se.fit = F) %>% 
+  as.data.frame() %>% 
+  as_tibble() %>% 
+  bind_cols(frame_predict_ua_uv_fsdim_gam) %>% select(-c("dimension")) %>% 
+  separate_wider_delim(group.dim, ".", names = c("group", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = ".")
+```
+
+Plot:
+
+```{r}
+ua_uv_gam_fsdim_plot <- ggplot(ua_uv_fsdim_gam_predict) +
+  aes(x_mean_z, y_mean_z, group = group, color = group) +
+  geom_path() +
+  coord_fixed() +
+  facet_wrap(vars(participant), ncol = 5) +
+  theme(legend.position = "bottom")
+```
+
+
+```{r}
+#| fig-cap: "UV-GAM: alveolar vs uvular rhotics, factor smooth over knot for participant by dimension"
+
+ua_uv_gam_fsdim_plot
+```
+
+Exclude factor smooth from prediction:
+
+```{r}
+excl <- c("s(knot,participant):dimensionx_mean_z", "s(knot,participant):dimensiony_mean_z")
+```
+
+```{r}
+ua_uv_fsdim_gam_predict2 <- predict(ua_uvgam_fsdim, frame_predict_ua_uv_fsdim_gam, se.fit = F, exclude = excl) %>% 
+  as.data.frame() %>% 
+  as_tibble() %>% 
+  bind_cols(frame_predict_ua_uv_fsdim_gam) %>% select(-c("dimension")) %>% 
+  separate_wider_delim(group.dim, ".", names = c("group", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = ".")
+```
+
+Plot:
+
+```{r}
+ua_uv_gam_fsdim_plot2 <- ggplot(ua_uv_fsdim_gam_predict2 %>% subset(participant %in% c("vp004", "vp008"))) +
+  aes(x_mean_z, y_mean_z, group = group, color = group) +
+  geom_path() +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+```
+
+
+```{r}
+#| fig-cap: "UV-GAM: alveolar vs uvular rhotics, excluded factor smooth over knot for participant by dimension"
+
+ua_uv_gam_fsdim_plot2
+```
+
+Looks very weird! **Question: Why do the predicted splines always look weird when I add `dimension` as a by variable in the factor smooths?**
+
+# Factor Smooths for Dynamic GAMMs?
+
+How do the factor smooths work when we add the time domain? 
+
+E.g., we not only want to know if the general tongue position is different between alveolar and uvular rhotics, but also how the tongue movement over time is different.
+
+Dynamic data set:
+
+```{r}
+rhotic_data_dyn <- readRDS("../data/RDS/rhotic_data15.rds") %>% merge(group, by = "participant") %>% plyr::arrange(clip_id,knot)
+
+rhotic_data_dyn_long <- rhotic_data_dyn %>% pivot_longer(c(x_z,y_z), names_to = "dimension", values_to = "position") %>% 
+  mutate(group.dim = paste0(group,".",dimension)) %>% 
+  mutate(group.dim = factor(group.dim)) %>% 
+  arrange(sort_id, group.dim) %>% select(-c("x", "y"))
+```
+
+Univariate dynamic GAM:
+
+```{r}
+uv_gam_dyn <- bam(position ~ group.dim + te(knot, normtime, by = group.dim),
+           data = rhotic_data_dyn_long,
+           family = 'scat',
+           discrete = T)
+AR1.rho <- acf_resid(uv_gam_dyn)[2]
+uv_gam_dyn <- bam(position ~ group.dim + te(knot, normtime, by = group.dim),
+           data = rhotic_data_dyn_long,
+           rho = AR1.rho,
+            AR.start = rhotic_data_dyn_long %>% pull(knot) == 0,
+           family = 'scat',
+           discrete = T)
+summary(uv_gam_dyn)
+```
+
+Predict:
+
+```{r}
+uv_gam_dyn_frame <- expand_grid(
+  knot = 0:10,
+  normtime = (0:5)/5,
+  group.dim = rhotic_data_dyn_long$group.dim %>% levels()
+)
+```
+
+```{r}
+uv_gam_dyn_predict <- predict(uv_gam_dyn, uv_gam_dyn_frame, se.fit = T) %>% 
+  as.data.frame() %>% as_tibble() %>% 
+  bind_cols(uv_gam_dyn_frame) %>% separate_wider_delim(group.dim, ".", names = c("group", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = c("fit", "se.fit"))
+
+colnames(uv_gam_dyn_predict) <- c("knot", "normtime", "group", "x_z", "y_z", "x_z_se", "y_z_se")
+```
+
+Plot:
+```{r}
+uv_gam_dyn_pred_plot <- uv_gam_dyn_predict %>% 
+  ggplot(aes(x_z, y_z, colour = normtime, group = normtime)) +
+  geom_path() +
+  geom_point(size = 0.5, alpha = 0.75) +
+  coord_fixed() +
+  facet_wrap(vars(group)) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "Dynamic UV-GAM: alveolar vs uvular rhotics"
+
+uv_gam_dyn_pred_plot
+```
+
+Tongue movement for uvular rhotics goes downwards, for alveolar rhotics it goes upwards.
+
+What if we now wanted to add a factor smooth for participant? What would the term look like?
+
+Here, I included the term `s(knot, participant, bs = "fs", m = 1)` that was also used for the static data. **The variation over time is missing - how would that be included in a fs term?**
+
+```{r}
+rhotic_data_dyn_long$participant <- as.factor(rhotic_data_dyn_long$participant)
+uv_gam_dyn_fs <- bam(position ~ group.dim + 
+                       te(knot, normtime, by = group.dim) +
+                       s(knot, participant, bs = "fs", m = 1), # factor smooth without by-variable
+           data = rhotic_data_dyn_long,
+           family = 'scat',
+           discrete = T)
+AR1.rho <- acf_resid(uv_gam_dyn_fs)[2]
+uv_gam_dyn_fs <- bam(position ~ group.dim + 
+                       te(knot, normtime, by = group.dim) +
+                       s(knot, participant, bs = "fs", m = 1),
+           data = rhotic_data_dyn_long,
+           rho = AR1.rho,
+            AR.start = rhotic_data_dyn_long %>% pull(knot) == 0,
+           family = 'scat',
+           discrete = T)
+summary(uv_gam_dyn_fs)
+```
+
+Predict:
+
+```{r}
+frame_predict_uv_fs_gam_dyn <- expand_grid(
+  participant = rhotic_data_dyn_long$participant %>% levels(),
+  normtime = c(0:5)/5,
+  knot = c(0:10),
+  dim = c("x_z", "y_z")
+) %>% mutate(
+  group = case_when(
+    participant %in% c("vp004", "vp005", "vp006", "vp007", "vp009", "vp020", "vp038", "vp045") ~ "u",
+    participant %in% c("vp008", "vp010", "vp023", "vp040", "vp047", "vp053", "vp056") ~ "a"
+  )
+) %>% mutate(
+  group.dim = paste0(group, ".", dim)
+) %>% select(-c("group", "dim"))
+```
+
+```{r}
+uv_gam_dyn_fs_predict <- predict(uv_gam_dyn_fs, frame_predict_uv_fs_gam_dyn, se.fit = F) %>% 
+  as.data.frame() %>% 
+  as_tibble() %>% 
+  bind_cols(frame_predict_uv_fs_gam_dyn) %>% 
+  separate_wider_delim(group.dim, ".", names = c("group", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = ".")
+```
+
+Plot:
+
+```{r}
+uv_gam_dyn_fs_plot <- ggplot(uv_gam_dyn_fs_predict) +
+  aes(x_z, y_z, group = normtime, color = normtime) +
+  geom_path() +
+  coord_fixed() +
+  facet_wrap(vars(participant), ncol = 5) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "Dynamic UV-GAM: alveolar vs uvular rhotics, factor smooth over knot for participant"
+
+uv_gam_dyn_fs_plot
+```
+
+When we exclude the random effects:
+
+```{r}
+excl <- c("s(knot,participant)")
+uv_gam_dyn_fs_predict2 <- predict(uv_gam_dyn_fs, frame_predict_uv_fs_gam_dyn, se.fit = F, exclude = excl) %>% 
+  as.data.frame() %>% 
+  as_tibble() %>% 
+  bind_cols(frame_predict_uv_fs_gam_dyn) %>% 
+  separate_wider_delim(group.dim, ".", names = c("group", "dimension")) %>% 
+  pivot_wider(names_from = dimension, values_from = ".")
+```
+
+```{r}
+uv_gam_dyn_fs_plot2 <- ggplot(uv_gam_dyn_fs_predict2 %>% subset(participant %in% c("vp004", "vp008"))) +
+  aes(x_z, y_z, group = normtime, color = normtime) +
+  geom_path() +
+  coord_fixed() +
+  facet_grid(~group) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| fig-cap: "Dynamic UV-GAM: alveolar vs uvular rhotics, excluded factor smooth over knot for participant"
+
+uv_gam_dyn_fs_plot2
+```
+
+Well, I guess this didn't work at all :D 
+
+**Question: What factor smooth term would be suitable for this kind of data instead?** 
+
+I also tried the same thing with a multivariate dynamic GAMM, but it didn't work either with the factor smooths.
+
+
